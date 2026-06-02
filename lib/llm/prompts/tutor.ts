@@ -1,0 +1,97 @@
+import type { ConceptMastery } from "@/lib/db/types";
+import type { RecentError } from "@/lib/db/queries/attempts";
+import type { SemanticMatch } from "@/lib/db/queries/interactions";
+import type { ContrastConcept, PrerequisiteConcept } from "@/lib/db/queries/edges";
+
+// Pure prompt construction — no I/O. The service assembles the inputs.
+
+// E4 — a contrast partner is "weak" (worth disambiguating) below this mastery.
+export const CONTRAST_WEAK_THRESHOLD = 0.5;
+// §8 — a prerequisite is "not yet solid" below the planner's owned threshold;
+// surface it as a possible root gap (aligns with lib/planner.ts PREREQ_OWNED).
+export const PREREQ_WEAK_THRESHOLD = 0.7;
+
+export interface TutorContext {
+  conceptName: string;
+  conceptDescription: string | null;
+  mastery: ConceptMastery | null;
+  recentErrors: RecentError[];
+  semanticMatches: SemanticMatch[];
+  contrasts: ContrastConcept[];
+  prerequisites: PrerequisiteConcept[];
+}
+
+const PROFILE_STUB =
+  "No nightly learner profile yet. Treat the learner as a focused RRB NTPC aspirant; tailor depth to the per-concept mastery below.";
+
+export function buildTutorSystemPrompt(): string {
+  return [
+    "You are a patient, precise tutor for India's RRB NTPC exam.",
+    "Teach to the learner's actual gap shown in the [MEMORY] block — be concise and concrete, and prefer worked reasoning over generic advice.",
+    "Lean on what the learner already knows and directly address the specific recent mistakes listed.",
+    "If a listed prerequisite is weak and relevant to the question, point the learner to that foundational gap first rather than only answering the surface question.",
+    "Ground general-awareness facts in well-established knowledge; if you are unsure of a fact, say so plainly rather than guessing.",
+    "Write any mathematics in LaTeX: wrap inline math in $…$ and display equations in $$…$$ (e.g. $\\frac{15}{100}\\times200=30$). Never leave raw LaTeX commands like \\frac outside math delimiters.",
+  ].join(" ");
+}
+
+// The stable, cacheable prefix (§8): persona + the nightly learner profile.
+// Both change at most once a day, so they earn a prompt-cache breakpoint while
+// the per-concept [MEMORY] slice (built below) stays volatile and uncached.
+export function buildTutorCachedPrefix(profileSummary: string | null): string {
+  return `${buildTutorSystemPrompt()}\n\n[PROFILE]\n${profileSummary ?? PROFILE_STUB}`;
+}
+
+// The selectively-retrieved memory slice (Hard Rule §7 — never dump everything).
+export function buildTutorMemoryBlock(ctx: TutorContext): string {
+  const lines: string[] = [];
+  lines.push(
+    `Concept: ${ctx.conceptName}${ctx.conceptDescription ? ` — ${ctx.conceptDescription}` : ""}`
+  );
+
+  lines.push(
+    ctx.mastery
+      ? `Mastery: ${ctx.mastery.attempts} attempts, ${ctx.mastery.correct} correct, ` +
+          `p_known=${ctx.mastery.p_known.toFixed(2)}, level=${ctx.mastery.mastery_level}.`
+      : "Mastery: no attempts yet on this concept (treat as new)."
+  );
+
+  if (ctx.recentErrors.length > 0) {
+    lines.push("Recent mistakes:");
+    for (const e of ctx.recentErrors) {
+      const chose = e.selected_text ? `chose "${e.selected_text}"` : "skipped";
+      lines.push(`- ${e.stem} — ${chose}; correct was "${e.correct_text}".`);
+    }
+  }
+
+  // J2 (v5) — the learner's own past words, recalled semantically, for continuity.
+  if (ctx.semanticMatches.length > 0) {
+    lines.push("Relevant past notes from the learner:");
+    for (const m of ctx.semanticMatches) {
+      lines.push(`- (${m.type}) ${m.content.slice(0, 240)}`);
+    }
+  }
+
+  // E4 — surface the concept the learner confuses this with WHEN that partner is
+  // itself weak (the likely root of the mix-up). The tutor is told to contrast
+  // the pair explicitly.
+  const weakContrasts = ctx.contrasts.filter((c) => c.p_known < CONTRAST_WEAK_THRESHOLD);
+  if (weakContrasts.length > 0) {
+    lines.push("Easily confused with (and currently weak — contrast these explicitly):");
+    for (const c of weakContrasts) {
+      lines.push(`- ${c.name} (p_known=${c.p_known.toFixed(2)})`);
+    }
+  }
+
+  // §8 — surface prerequisites this concept depends on that are not yet solid,
+  // so the tutor can address the root gap instead of only the surface question.
+  const weakPrereqs = ctx.prerequisites.filter((p) => p.p_known < PREREQ_WEAK_THRESHOLD);
+  if (weakPrereqs.length > 0) {
+    lines.push("Weak prerequisites (foundations not yet solid — likely root of the struggle):");
+    for (const p of weakPrereqs) {
+      lines.push(`- ${p.name} (p_known=${p.p_known.toFixed(2)})`);
+    }
+  }
+
+  return lines.join("\n");
+}
