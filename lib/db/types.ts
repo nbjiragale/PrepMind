@@ -1,13 +1,30 @@
-// Row types kept in sync with migrations/0001_v1_init.sql.
+// Row types kept in sync with migrations.
 
-export type Subject = "math" | "reasoning" | "ga";
+// Subject key: the string stored in concept.subject, FK → subject.key (0011).
+export type SubjectKey = string;
+
+// Kept as a compatibility alias so existing code using the old union literal
+// ("math" | "reasoning" | "ga") still type-checks while we migrate call sites.
+export type Subject = SubjectKey;
+
+// generation_mode on the subject table (0011). Drives Hard Rule §1 grounding gate.
+export type GenerationMode = "grounded" | "verified_free";
+
+// Row type for the subject catalog table (0011).
+export interface SubjectRow {
+  key: SubjectKey;
+  label: string;
+  generation_mode: GenerationMode;
+  position: number;
+}
+
 export type CardType = "recall" | "cloze" | "mcq";
 export type CardState = "new" | "learning" | "review" | "relearning";
 
 export interface Concept {
   id: number;
   name: string;
-  subject: Subject;
+  subject: SubjectKey;
   topic: string;
   subtopic: string | null;
   parent_id: number | null;
@@ -43,13 +60,26 @@ export interface DueCard extends Card {
 // FSRS ratings map 1..4 → again/hard/good/easy.
 export type Rating = 1 | 2 | 3 | 4;
 
+// Section within an exam — extended with subject_key (0011) and optional
+// time_s=0 sentinel meaning "auto".
+export interface ExamSection {
+  name: string;
+  questions: number;
+  marks: number;
+  time_s: number;
+  /** FK → subject.key. Added by migration 0011 backfill; required going forward. */
+  subject_key?: SubjectKey;
+}
+
 export interface ExamConfig {
   id: number;
   exam_name: string;
   exam_date: string | null;
   negative_mark_ratio: number;
+  /** Number of answer choices per MCQ. Default 4; may differ for other exams. */
+  options_per_question: number;
   locale: string;
-  sections: { name: string; questions: number; marks: number; time_s: number }[];
+  sections: ExamSection[];
   created_at: string;
 }
 
