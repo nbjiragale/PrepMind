@@ -1,6 +1,8 @@
 # Personal Learning Memory — Schema & Retrieval Architecture
 
-*RRB NTPC prep platform · single-user · Postgres + pgvector · stateless LLM (DeepSeek/Claude)*
+*Multi-exam prep platform (PrepMind) · single-user, one active exam per instance · Postgres + pgvector · stateless LLM (DeepSeek/Claude)*
+
+> **Multi-exam note.** Subjects live in a `subject` catalog (`key`, `label`, `generation_mode`, `position`); `concept.subject` is an FK to it. The `generation_mode` (`grounded` vs `verified_free`) drives the grounding gate that this doc describes for GA — read "GA" as "any `grounded` subject". `exam_config` also carries `options_per_question`, `qualifying_fraction`, `ca_category_priors`, and per-section `subject_key`. An onboarding flow seeds all of this from a preset on first run.
 
 ---
 

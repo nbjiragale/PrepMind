@@ -10,7 +10,9 @@
 
 ## 1. What this is
 
-A **single-user, AI-assisted study platform** for one person preparing for the RRB NTPC exam. It is a **practice + memory + diagnosis engine plus a study planner** — not a content/courseware platform. The learner studies external sources (NCERT, Lucent GK, PYQ papers); the app handles everything around that: spaced-repetition review, MCQ practice and mock tests, automatic mistake diagnosis, confidence/attempt-strategy training, and a daily plan of what to study next. An AI tutor answers doubts with full awareness of the learner's history.
+A **single-user, AI-assisted, multi-exam study platform** (branded **PrepMind**). It is a **practice + memory + diagnosis engine plus a study planner** — not a content/courseware platform. The learner studies external sources (NCERT, Lucent GK, PYQ papers); the app handles everything around that: spaced-repetition review, MCQ practice and mock tests, automatic mistake diagnosis, confidence/attempt-strategy training, and a daily plan of what to study next. An AI tutor answers doubts with full awareness of the learner's history.
+
+**Multi-exam (one active exam per instance).** On first run (no `exam_config`), an onboarding exam-picker seeds the chosen exam's `subject` rows, `exam_config`, and concept ontology in one transaction. The chosen exam reconfigures subjects, sections, negative-marking, option count, qualifying band, ontology, prompts, and branding. **RRB NTPC is the reference preset** (`lib/exam/presets.ts`), reproducing the original single-exam build exactly. Switching exams later is an explicit, destructive reseed (export-first, typed confirmation). Subjects carry a `generation_mode` (`grounded` vs `verified_free`) that drives the Hard Rule §2.1 grounding gate for any subject — the old `subject === 'ga'` special-casing is gone.
 
 **Core paradigm:** the LLM is **stateless**. All memory lives in Postgres and is retrieved into the prompt at call time. Personalization = retrieval + a small classical student model (BKT + FSRS + logistic regression). Never fine-tune.
 
@@ -32,8 +34,8 @@ All three live in Postgres:
 
 These are enforced *everywhere* in the codebase. A feature is not done if any are violated.
 
-1. **No fact generation from model memory for GA/GK.** GA/GK questions and cards must be generated only from supplied source text (`current_affairs_item.raw_text` or a provided passage). Every fact must trace to that source. Ungrounded GA generation must be impossible by construction.
-2. **Every AI-generated question passes a verify gate before display.** Math/reasoning: independently recompute the answer. GA: confirm each fact traces to source. All: exactly one correct option, distractors plausible. Only `verified = true` items reach the user.
+1. **No fact generation from model memory for grounded subjects.** Any subject whose `generation_mode = 'grounded'` (GA/GK is the RRB example) must generate questions and cards only from supplied source text (`current_affairs_item.raw_text` or a provided passage). Every fact must trace to that source. Ungrounded generation for a grounded subject must be impossible by construction. (Generalised from "GA/GK" — the rule is keyed to `generation_mode`, never the word "GA".)
+2. **Every AI-generated question passes a verify gate before display.** `verified_free` subjects (math/reasoning): independently recompute the answer. `grounded` subjects: confirm each fact traces to source. All: exactly one correct option (out of `exam_config.options_per_question`), distractors plausible. Only `verified = true` items reach the user.
 3. **No model fine-tuning.** Personalization is retrieval-augmented (RAG over the learner's own data) + small classical models. No fine-tuning pipeline.
 4. **Cost discipline.** Route tasks to the cheapest model that clears the quality bar; use batch processing for non-interactive jobs and prompt caching for reused context (syllabus, learner profile). Target single-digit-dollars/month.
 5. **Single-user & data ownership.** One owned Postgres database; study data is exportable; no third-party persistence of study data beyond the transient LLM API call.
@@ -72,6 +74,8 @@ Abstract the provider behind a router so DeepSeek / Claude / Gemini / Sarvam are
 │   ├── (planner)/              # Study planner (v3)
 │   ├── (diagnosis)/            # Mistakes & misconceptions (v4)
 │   ├── (dashboard)/            # Insights & heatmap (v6)
+│   ├── onboarding/             # First-run exam-picker (mx)
+│   ├── exam/                   # Exam config + switch (mx)
 │   ├── api/                    # Route handlers (if server actions insufficient)
 │   └── layout.tsx              # Root layout with sidebar shell
 ├── components/
@@ -85,7 +89,8 @@ Abstract the provider behind a router so DeepSeek / Claude / Gemini / Sarvam are
 ├── lib/
 │   ├── db/
 │   │   ├── schema.sql           # Canonical migration (source of truth)
-│   │   └── queries/             # One file per domain (cards.ts, attempts.ts…)
+│   │   └── queries/             # One file per domain (cards.ts, attempts.ts, subjects.ts…)
+│   ├── exam/                   # Presets, subject helpers, ontology data, requireExamConfig guard (mx)
 │   ├── fsrs/                   # FSRS wrapper around ts-fsrs
 │   ├── bkt.ts                  # Bayesian Knowledge Tracing (15 lines)
 │   ├── llm/
@@ -112,17 +117,20 @@ Create tables in this order (respects FK constraints). Full annotated SQL lives 
 CREATE EXTENSION IF NOT EXISTS vector;  -- pgvector; embedding dim 1024
 
 -- Exam parameterisation (one row per instance)
-exam_config         -- sections JSONB + negative_mark_ratio + locale + exam_date
+subject             -- subject catalog: key PK, label, generation_mode, position (migration 0011)
+exam_config         -- sections JSONB (each with subject_key) + negative_mark_ratio
+                    --   + options_per_question + qualifying_fraction + ca_category_priors JSONB
+                    --   + locale + exam_date
 
 -- Core ontology
-concept             -- subject > topic > subtopic > concept hierarchy
+concept             -- subject > topic > subtopic > concept hierarchy; subject is FK → subject(key)
 concept_edge        -- prerequisite / related / contrasts_with graph
 concept_resource    -- external "where to learn" pointers (routes OUT, stores nothing)
 
 -- Assessment items
 card                -- SRS review units; FSRS state lives here
 question            -- MCQs: pyq | ai_generated | adversarial; verified gate
-current_affairs_item -- grounding source for GA generation (raw_text is sacred)
+current_affairs_item -- grounding source for grounded-subject generation (raw_text is sacred)
 pyq_topic_stats     -- PYQ frequency analysis → exam_weight on concepts
 
 -- Behavioral logs (APPEND-ONLY — never overwrite)
@@ -142,22 +150,31 @@ study_plan          -- daily/weekly ordered new_concepts + review_load
 
 ### Key constraints to enforce in code
 - `question.verified` **must be `true`** before any question is shown to the user.
-- `current_affairs_item.raw_text` must be present before any GA question generation.
+- `current_affairs_item.raw_text` must be present before any grounded-subject question generation.
+- `concept.subject` is an FK → `subject(key)`; resolve a concept's `generation_mode` via the `subject` catalog (`lib/db/queries/subjects.ts`), never by matching the string `'ga'`.
 - `attempt`, `review`, `interaction` rows are INSERT-only; never UPDATE or DELETE.
 - `concept_mastery` is the only table that gets UPDATE (derived state).
 
-### `exam_config` — parameterise, never hardcode
-The exam structure is data, not code. Mocks, the EV trainer, and the planner all read it.
+### `subject` + `exam_config` — parameterise, never hardcode
+The exam structure is data, not code. Onboarding seeds it from a preset; the exam form edits it. Mocks, the EV trainer, the planner, readiness, and prompts all read it.
 ```
-sections            JSONB   -- [{name, questions, marks, time_s}, ...]
-negative_mark_ratio REAL    -- 0.3333 (1/3) for RRB NTPC
-exam_date           DATE    -- drives the planner's exam-date backstop
-locale              TEXT    -- 'en' default; schema is language-agnostic for later
+subject.key              TEXT  -- PK; the value stored on concept.subject
+subject.label            TEXT  -- display name
+subject.generation_mode  TEXT  -- 'grounded' | 'verified_free' (drives Hard Rule §2.1)
+subject.position         INT   -- display/column ordering
+
+exam_config.sections             JSONB -- [{name, questions, marks, time_s, subject_key}, ...]
+exam_config.negative_mark_ratio  REAL  -- 0.3333 (1/3) for RRB NTPC
+exam_config.options_per_question INT   -- 4 for RRB NTPC; drives guess prob + verify gate
+exam_config.qualifying_fraction  REAL  -- 0.45 for RRB NTPC; drives readiness target
+exam_config.ca_category_priors   JSONB -- per-exam current-affairs ranking priors
+exam_config.exam_date            DATE  -- drives the planner's exam-date backstop
+exam_config.locale               TEXT  -- 'en' default; schema is language-agnostic for later
 ```
 
 ### Question sources (three trust levels feeding `question`)
 - **PYQ — ingested, never generated.** Real past papers tagged to `concept_id` with `exam_year`/`exam_stage`. The difficulty anchor everything else calibrates against.
-- **AI-generated — math/reasoning generated freely + auto-verified; GA generated ONLY from source text.** `gen_source` records the grounding (`ca:<id>` / `passage` / `pyq:<id>`).
+- **AI-generated — `verified_free` subjects generated freely + auto-verified; `grounded` subjects generated ONLY from source text.** `gen_source` records the grounding (`ca:<id>` / `passage` / `pyq:<id>`).
 - **Adversarial — generated from a wrong attempt + its diagnosed misconception** to force the missed distinction; lineage via `parent_question_id`.
 
 ---
@@ -394,10 +411,10 @@ generate(cheap model) → verify gate → verified=true → serve
                                     → verified=false → discard / queue
 ```
 
-**Verify gate rules by source:**
-- `math/reasoning`: code independently recomputes the answer; must match and be unique.
-- `ga/gk`: every fact in stem + options must trace back to the `current_affairs_item.raw_text` or supplied passage; no model-memory facts.
-- All: exactly one correct option; distractors plausible but distinct.
+**Verify gate rules by `generation_mode`:**
+- `verified_free` (math/reasoning): code independently recomputes the answer; must match and be unique.
+- `grounded` (GA/GK and any source-restricted subject): every fact in stem + options must trace back to the `current_affairs_item.raw_text` or supplied passage; no model-memory facts.
+- All: exactly one correct option (of `exam_config.options_per_question`); distractors plausible but distinct.
 
 Never set `verified=true` in application code without running all checks. The gate is a function in `lib/llm/verify.ts`.
 
@@ -415,6 +432,7 @@ Build and **fully ship** each phase before starting the next. The app must run e
 | **v4** | Misconception diagnosis, grounded question generation + verify gate, current-affairs ingestion | `misconception`, `misconception_hit`, `current_affairs_item` |
 | **v5** | Feynman mode, semantic recall, calibration model, EV trainer, nightly profile, CA digest | `interaction`, `learner_profile`, `calibration_model` (full) |
 | **v6** | Knowledge graph, concept resources, insights dashboard (heatmap, trends, readiness, streak) | `concept_edge`, `concept_resource` |
+| **mx** | Multi-exam generalization: `subject` catalog, onboarding exam-picker + switch, `generation_mode` replaces GA special-casing, exam-driven constants (option count, qualifying band, CA priors), prompts/branding from config | `subject` (migration 0011) |
 
 ---
 

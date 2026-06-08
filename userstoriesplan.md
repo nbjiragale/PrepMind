@@ -1,6 +1,8 @@
-# User Stories Plan — RRB NTPC Personal Learning Platform
+# User Stories Plan — PrepMind Personal Learning Platform
 
-*Companion to `learner-memory-architecture.md`. Single-user (you). Stories are phased to the same v1→v6 build order so you always know what to build next.*
+*Companion to `learner-memory-architecture.md`. Single-user (you), multi-exam (one active exam per instance). Stories are phased to the same v1→v6 build order so you always know what to build next.*
+
+> **Multi-exam (mx) epic — added after v6.** First run shows an onboarding exam-picker that seeds the chosen exam's subjects, sections, ontology, negative marking, option count, qualifying band, and CA priors from a preset; RRB NTPC is the reference preset. Stories below that say "GA" apply to any subject with `generation_mode = 'grounded'`. Switching exams is an explicit, export-first destructive reseed on `/exam`.
 
 ---
 
