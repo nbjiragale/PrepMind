@@ -3,6 +3,7 @@ import { listSubjects } from "@/lib/db/queries/subjects";
 import { EXAM_PRESETS } from "@/lib/exam/presets";
 import { ExamConfigForm } from "@/components/exam/ExamConfigForm";
 import { ExamSwitchForm } from "@/components/exam/ExamSwitchForm";
+import { OntologyGenerator } from "@/components/exam/OntologyGenerator";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,15 @@ export default async function ExamPage() {
         planner, and your readiness estimate all read this.
       </p>
       <ExamConfigForm config={config} subjects={subjects} />
+
+      <div className="mt-12">
+        <h2 className="text-h2 mb-2">Concept ontology</h2>
+        <p className="text-secondary text-body mb-4">
+          Let AI draft a starter syllabus structure for your subjects, then review it before seeding.
+          You can also author concepts by hand on the Concepts page.
+        </p>
+        <OntologyGenerator />
+      </div>
 
       <div className="mt-12">
         <h2 className="text-h2 mb-2">Switch exam</h2>
