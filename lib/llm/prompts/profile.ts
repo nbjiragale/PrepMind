@@ -14,9 +14,9 @@ export interface ProfileInputs {
   calibration: string | null;
 }
 
-export function buildProfileSystemPrompt(): string {
+export function buildProfileSystemPrompt(examName: string): string {
   return [
-    "You write a single concise paragraph (4-6 sentences) describing an RRB NTPC learner for use as tutor context.",
+    `You write a single concise paragraph (4-6 sentences) describing a ${examName} learner for use as tutor context.`,
     "Be specific and factual using ONLY the stats provided — name weak areas and recurring traps; note over/under-confidence if given.",
     "Neutral, supportive tone. No headings, no lists, no invented facts. Output the paragraph only.",
   ].join("\n");

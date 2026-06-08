@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { masteryBucket, type MasteryBucket } from "@/lib/mastery";
 import type { GraphNode, GraphEdge } from "@/lib/db/queries/edges";
+import type { SubjectRow } from "@/lib/db/types";
 
 // A3 (visual) — hand-rolled SVG node-link graph (no viz dependency, SSR-safe).
 // Deterministic layout: nodes are grouped into columns by subject and stacked,
@@ -28,14 +29,27 @@ const ROW_H = 64;
 const NODE_W = 168;
 const NODE_H = 38;
 const TOP = 40;
-const SUBJECT_ORDER = ["math", "reasoning", "ga"];
 
-export function GraphCanvas({ nodes, edges }: { nodes: GraphNode[]; edges: GraphEdge[] }) {
+export function GraphCanvas({
+  nodes,
+  edges,
+  subjects: subjectRows,
+}: {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  subjects: SubjectRow[];
+}) {
   const [hover, setHover] = useState<number | null>(null);
 
   const { positions, width, height, columns } = useMemo(() => {
+    // Column order follows the subject catalog's `position`; labels come from it
+    // too. Unknown keys (shouldn't happen) sort last by key.
+    const order = new Map(subjectRows.map((s) => [s.key, s.position]));
+    const labels = new Map(subjectRows.map((s) => [s.key, s.label]));
     const subjects = [...new Set(nodes.map((n) => n.subject))].sort(
-      (a, b) => SUBJECT_ORDER.indexOf(a) - SUBJECT_ORDER.indexOf(b)
+      (a, b) =>
+        (order.get(a) ?? Number.MAX_SAFE_INTEGER) - (order.get(b) ?? Number.MAX_SAFE_INTEGER) ||
+        a.localeCompare(b)
     );
     const positions = new Map<number, { x: number; y: number }>();
     let maxRows = 0;
@@ -50,9 +64,9 @@ export function GraphCanvas({ nodes, edges }: { nodes: GraphNode[]; edges: Graph
       positions,
       width: 30 + subjects.length * COL_W,
       height: TOP + Math.max(1, maxRows) * ROW_H,
-      columns: subjects,
+      columns: subjects.map((key) => ({ key, label: labels.get(key) ?? key })),
     };
-  }, [nodes]);
+  }, [nodes, subjectRows]);
 
   // Which node ids are connected to the hovered node (to emphasise its edges).
   const adjacent = useMemo(() => {
@@ -81,8 +95,8 @@ export function GraphCanvas({ nodes, edges }: { nodes: GraphNode[]; edges: Graph
         </defs>
 
         {columns.map((subject, i) => (
-          <text key={subject} x={30 + i * COL_W} y={20} fontSize={11} className="fill-muted uppercase">
-            {subject}
+          <text key={subject.key} x={30 + i * COL_W} y={20} fontSize={11} className="fill-muted uppercase">
+            {subject.label}
           </text>
         ))}
 

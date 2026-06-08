@@ -3,13 +3,12 @@
 // evidence is thin (few attempts, few mocks). The screen states the number with
 // explicit uncertainty wording; this module is the maths behind it.
 
-// BKT slip/guess defaults (mirrors lib/bkt.ts DEFAULT_BKT). Inlined so this
-// pure module stays self-contained and unit-testable in isolation, like the
-// other tested lib/*.ts modules. P(correct) = p·(1−S) + (1−p)·G.
+// BKT slip default (mirrors lib/bkt.ts DEFAULT_BKT). Guess probability is
+// exam-driven (1 / options_per_question) and passed in, not hardcoded to 0.25.
+// P(correct) = p·(1−S) + (1−p)·G.
 const SLIP = 0.1;
-const GUESS = 0.25;
-function predictCorrect(pKnown: number): number {
-  return pKnown * (1 - SLIP) + (1 - pKnown) * GUESS;
+function predictCorrect(pKnown: number, guess: number): number {
+  return pKnown * (1 - SLIP) + (1 - pKnown) * guess;
 }
 
 export interface ReadinessConcept {
@@ -24,6 +23,8 @@ export interface ReadinessInputs {
   /** Recent mocks as score fraction = score / total_questions, in [-negRatio, 1]. */
   mockScoreFractions: number[];
   negRatio: number;
+  /** BKT guess probability = 1 / options_per_question (e.g. 0.25 for 4 options). */
+  guessProbability: number;
   /** Optional target/cutoff marks to compare against. */
   targetMarks?: number | null;
 }
@@ -48,11 +49,11 @@ export interface Readiness {
 const MOCK_HALF_WEIGHT = 3;
 
 export function computeReadiness(input: ReadinessInputs): Readiness {
-  const { totalMarks, concepts, mockScoreFractions, negRatio } = input;
+  const { totalMarks, concepts, mockScoreFractions, negRatio, guessProbability } = input;
 
   // Mastery estimate: exam-weighted predicted accuracy → expected mark fraction
   // if every question is attempted (honest; untouched concepts drag it down).
-  const masteryAccuracy = weightedAccuracy(concepts);
+  const masteryAccuracy = weightedAccuracy(concepts, guessProbability);
   const masteryFraction = expectedFraction(masteryAccuracy, negRatio);
 
   const nMocks = mockScoreFractions.length;
@@ -94,12 +95,12 @@ export function computeReadiness(input: ReadinessInputs): Readiness {
   };
 }
 
-function weightedAccuracy(concepts: ReadinessConcept[]): number {
+function weightedAccuracy(concepts: ReadinessConcept[], guess: number): number {
   let num = 0;
   let den = 0;
   for (const c of concepts) {
     const w = c.examWeight > 0 ? c.examWeight : 1;
-    num += w * predictCorrect(c.pKnown);
+    num += w * predictCorrect(c.pKnown, guess);
     den += w;
   }
   return den === 0 ? 0 : num / den;

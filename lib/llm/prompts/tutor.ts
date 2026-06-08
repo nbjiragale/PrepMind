@@ -21,16 +21,16 @@ export interface TutorContext {
   prerequisites: PrerequisiteConcept[];
 }
 
-const PROFILE_STUB =
-  "No nightly learner profile yet. Treat the learner as a focused RRB NTPC aspirant; tailor depth to the per-concept mastery below.";
+const profileStub = (examName: string) =>
+  `No nightly learner profile yet. Treat the learner as a focused ${examName} aspirant; tailor depth to the per-concept mastery below.`;
 
-export function buildTutorSystemPrompt(): string {
+export function buildTutorSystemPrompt(examName: string): string {
   return [
-    "You are a patient, precise tutor for India's RRB NTPC exam.",
+    `You are a patient, precise tutor for the ${examName} exam.`,
     "Teach to the learner's actual gap shown in the [MEMORY] block — be concise and concrete, and prefer worked reasoning over generic advice.",
     "Lean on what the learner already knows and directly address the specific recent mistakes listed.",
     "If a listed prerequisite is weak and relevant to the question, point the learner to that foundational gap first rather than only answering the surface question.",
-    "Ground general-awareness facts in well-established knowledge; if you are unsure of a fact, say so plainly rather than guessing.",
+    "Ground factual-recall answers in well-established knowledge; if you are unsure of a fact, say so plainly rather than guessing.",
     "Write any mathematics in LaTeX: wrap inline math in $…$ and display equations in $$…$$ (e.g. $\\frac{15}{100}\\times200=30$). Never leave raw LaTeX commands like \\frac outside math delimiters.",
   ].join(" ");
 }
@@ -38,8 +38,8 @@ export function buildTutorSystemPrompt(): string {
 // The stable, cacheable prefix (§8): persona + the nightly learner profile.
 // Both change at most once a day, so they earn a prompt-cache breakpoint while
 // the per-concept [MEMORY] slice (built below) stays volatile and uncached.
-export function buildTutorCachedPrefix(profileSummary: string | null): string {
-  return `${buildTutorSystemPrompt()}\n\n[PROFILE]\n${profileSummary ?? PROFILE_STUB}`;
+export function buildTutorCachedPrefix(profileSummary: string | null, examName: string): string {
+  return `${buildTutorSystemPrompt(examName)}\n\n[PROFILE]\n${profileSummary ?? profileStub(examName)}`;
 }
 
 // The selectively-retrieved memory slice (Hard Rule §7 — never dump everything).

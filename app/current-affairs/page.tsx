@@ -1,4 +1,6 @@
 import { listConcepts } from "@/lib/db/queries/concepts";
+import { listSubjects } from "@/lib/db/queries/subjects";
+import { groundedKeys } from "@/lib/exam/subjects";
 import { listCaItems } from "@/lib/db/queries/currentAffairs";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -13,8 +15,13 @@ export const dynamic = "force-dynamic";
 // cards (H2) / GA questions (C4) for a whole day in one pass, strictly from the
 // stored raw_text of that day's items.
 export default async function CurrentAffairsPage() {
-  const [items, concepts] = await Promise.all([listCaItems(), listConcepts()]);
-  const hasGaConcepts = concepts.some((c) => c.subject === "ga");
+  const [items, concepts, subjects] = await Promise.all([
+    listCaItems(),
+    listConcepts(),
+    listSubjects(),
+  ]);
+  const grounded = new Set(groundedKeys(subjects));
+  const hasGaConcepts = concepts.some((c) => grounded.has(c.subject));
   const today = new Date().toISOString().slice(0, 10);
   const days = groupByDate(items);
 

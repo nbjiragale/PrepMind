@@ -10,6 +10,7 @@ import {
   buildCaSummaryUserPrompt,
 } from "@/lib/llm/prompts/generate";
 import { verifyGroundedCards } from "@/lib/llm/verify";
+import { loadExamContext } from "@/lib/llm/examContext";
 import { genTokens } from "@/lib/config";
 import { numEnv } from "@/lib/env";
 import {
@@ -22,6 +23,8 @@ import {
 } from "@/lib/db/queries/currentAffairs";
 import { createCard } from "@/lib/db/queries/cards";
 import { listConcepts } from "@/lib/db/queries/concepts";
+import { listSubjects } from "@/lib/db/queries/subjects";
+import { groundedKeys } from "@/lib/exam/subjects";
 import type { Concept } from "@/lib/db/types";
 
 // Per-night caps for auto-generation (Hard Rule §4 cost discipline). Env-tunable;
@@ -70,8 +73,9 @@ export async function generateCaCards(input: {
     throw new Error("No GA concepts available — add at least one GA concept first.");
   }
 
+  const { examName } = await loadExamContext();
   const raw = await complete({
-    system: buildCaCardSystemPrompt(),
+    system: buildCaCardSystemPrompt(examName),
     messages: [
       {
         role: "user",
@@ -150,8 +154,9 @@ export async function generateCaDayCards(input: {
   const sources = items.filter((it) => it.raw_text?.trim());
   if (sources.length === 0) throw new Error("No current-affairs source text for this day.");
 
+  const { examName } = await loadExamContext();
   const raw = await complete({
-    system: buildCaDayCardSystemPrompt(),
+    system: buildCaDayCardSystemPrompt(examName),
     messages: [
       {
         role: "user",
@@ -215,8 +220,9 @@ export async function generateCaDayCards(input: {
 export async function summarizeCaItem(caId: number): Promise<string | null> {
   const ca = await getCaItem(caId);
   if (!ca?.raw_text?.trim()) return null;
+  const { examName } = await loadExamContext();
   const summary = await complete({
-    system: buildCaSummarySystemPrompt(),
+    system: buildCaSummarySystemPrompt(examName),
     messages: [{ role: "user", content: buildCaSummaryUserPrompt(ca.raw_text) }],
     task: "bulk",
     maxTokens: 256,
@@ -240,7 +246,8 @@ export async function autoGenerateCaCards(opts?: {
   const cardsPerItem = opts?.cardsPerItem ?? CA_AUTOGEN_CARDS_PER_ITEM;
   if (!isLlmConfigured() || maxItems <= 0 || cardsPerItem <= 0) return { items: 0, cards: 0 };
 
-  const gaConcepts = (await listConcepts()).filter((c) => c.subject === "ga");
+  const grounded = new Set(groundedKeys(await listSubjects()));
+  const gaConcepts = (await listConcepts()).filter((c) => grounded.has(c.subject));
   if (gaConcepts.length === 0) return { items: 0, cards: 0 };
 
   const items = await getUnprocessedCaItems(maxItems);

@@ -51,12 +51,12 @@ function buildNavItems(pathname: string) {
   return [...singles, ...groups];
 }
 
-export function Sidebar() {
+export function Sidebar({ examName }: { examName?: string }) {
   const pathname = usePathname();
   const items = buildNavItems(pathname);
   return (
     <nav className="bg-subtle h-full w-56 shrink-0 p-3 hidden md:flex md:flex-col gap-1">
-      <div className="px-3 py-3 text-h3 font-serif text-primary">RRB NTPC</div>
+      <div className="px-3 py-3 text-h3 font-serif text-primary">{examName || "PrepMind"}</div>
       {items.map(({ href, label, Icon, active }) => (
         <Link
           key={label}

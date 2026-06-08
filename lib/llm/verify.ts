@@ -88,25 +88,28 @@ const llmFactCardVerifier: FactCardVerifier = async (cards) => {
 };
 
 // Math/reasoning gate: short-circuit on structure, else re-solve and judge.
+// optionCount is exam-driven (exam_config.options_per_question), default 4.
 export async function verifyMathQuestion(
   q: GeneratedQuestion,
+  optionCount = 4,
   verifier: MathVerifier = llmMathVerifier
 ): Promise<VerifyResult> {
-  const structure = checkStructure(q);
+  const structure = checkStructure(q, optionCount);
   if (!structure.ok) return structure;
-  return judgeMath(q, await verifier(q));
+  return judgeMath(q, await verifier(q), optionCount);
 }
 
 // GA gate: requires source text (grounding is by construction), then judges.
 export async function verifyGaQuestion(
   q: GeneratedQuestion,
   sourceText: string,
+  optionCount = 4,
   verifier: GaVerifier = llmGaVerifier
 ): Promise<VerifyResult> {
   if (!sourceText?.trim()) return { ok: false, reason: "GA verification requires source text" };
-  const structure = checkStructure(q);
+  const structure = checkStructure(q, optionCount);
   if (!structure.ok) return structure;
-  return judgeGa(q, sourceText, await verifier(q, sourceText));
+  return judgeGa(q, sourceText, await verifier(q, sourceText), optionCount);
 }
 
 // H2 — grounding gate for CA flashcards; returns the grounded subset.

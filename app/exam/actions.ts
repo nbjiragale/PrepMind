@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { withTransaction } from "@/lib/db/client";
 import { upsertSubject } from "@/lib/db/queries/subjects";
-import { saveExamConfig } from "@/lib/db/queries/examConfig";
+import { saveExamConfig, getExamConfig } from "@/lib/db/queries/examConfig";
 
 const subjectSchema = z.object({
   key: z.string().trim().min(1, "Subject key is required."),
@@ -33,6 +33,7 @@ const schema = z.object({
     .or(z.literal("").transform(() => null)),
   negative_mark_ratio: z.coerce.number().min(0).max(1),
   options_per_question: z.coerce.number().int().min(2).default(4),
+  qualifying_fraction: z.coerce.number().min(0).max(1).default(0.45),
   locale: z.string().trim().min(1).default("en"),
   subjects: z.array(subjectSchema).min(1, "Add at least one subject."),
   sections: z.array(sectionSchema).min(1, "Add at least one section."),
@@ -47,6 +48,10 @@ export async function saveExamConfigAction(input: unknown): Promise<ExamConfigSt
   }
 
   const { subjects, sections, exam_date, ...configFields } = parsed.data;
+
+  // CA category priors aren't edited in this form — preserve the existing ones
+  // (seeded from the preset at onboarding) across a manual save.
+  const existing = await getExamConfig();
 
   // Cross-validate: every section.subject_key must exist in the submitted subjects catalog.
   const subjectKeys = new Set(subjects.map((s) => s.key));
@@ -66,7 +71,12 @@ export async function saveExamConfigAction(input: unknown): Promise<ExamConfigSt
         await upsertSubject(s, tx);
       }
       await saveExamConfig(
-        { ...configFields, exam_date: exam_date ?? null, sections },
+        {
+          ...configFields,
+          exam_date: exam_date ?? null,
+          ca_category_priors: existing?.ca_category_priors ?? {},
+          sections,
+        },
         tx
       );
     });

@@ -1,8 +1,8 @@
-# RRB NTPC — Personal Learning Platform
+# PrepMind — Personal Learning Platform
 
-A single-user, AI-assisted study platform for RRB NTPC prep. See [`CLAUDE.md`](./CLAUDE.md) for the full architecture, hard rules, schema, and conventions, and the four spec docs it references. **New here?** [`features.md`](./features.md) is a first-day "how do I use it?" guide; [`user-guide.md`](./user-guide.md) covers install and free hosting.
+A single-user, AI-assisted, **multi-exam** study platform. On first run an onboarding exam-picker configures the instance for one exam (RRB NTPC is the reference preset); subjects, sections, negative marking, ontology, prompts, and branding all follow that choice. See [`CLAUDE.md`](./CLAUDE.md) for the full architecture, hard rules, schema, and conventions, and the four spec docs it references. **New here?** [`features.md`](./features.md) is a first-day "how do I use it?" guide; [`user-guide.md`](./user-guide.md) covers install and free hosting.
 
-## Status: v6 (knowledge graph + insights dashboard)
+## Status: multi-exam generalization (on top of v6: knowledge graph + insights dashboard)
 
 **v1 — the daily review loop:**
 - **Concept ontology** — author concepts under subject → topic → subtopic (A2).
@@ -104,26 +104,22 @@ npm test   # pure unit tests (BKT, calibration, planner, scoring, readiness, str
    cp .env.example .env
    # edit DATABASE_URL
    ```
-3. **Run migrations** (0001 = v1 review tables; 0002 = practice/mastery; 0003 = planner/mocks; 0004 = `misconception`, `misconception_hit`, `current_affairs_item`; 0005 = `interaction`, `learner_profile`, `calibration_model`; 0006 = `concept_resource`, `concept_mastery_snapshot`; 0007 = CA content-hash dedup; 0008 = `concept_mastery.confidence_count`; 0009 = Testbook mock import (`question.external_ref`, `mock_session.external_ref`, `testbook_tag_map`)):
+3. **Run migrations** (0001 = v1 review tables; 0002 = practice/mastery; 0003 = planner/mocks; 0004 = `misconception`, `misconception_hit`, `current_affairs_item`; 0005 = `interaction`, `learner_profile`, `calibration_model`; 0006 = `concept_resource`, `concept_mastery_snapshot`; 0007 = CA content-hash dedup; 0008 = `concept_mastery.confidence_count`; 0009 = Testbook mock import (`question.external_ref`, `mock_session.external_ref`, `testbook_tag_map`); 0011 = multi-exam: `subject` catalog, `concept.subject` FK, `exam_config.options_per_question` / `qualifying_fraction` / `ca_category_priors`, section `subject_key`):
    ```bash
    npm run db:migrate
    ```
    For the AI tutor, diagnosis, and question/card generation, set `LLM_BASE_URL` / `LLM_API_KEY` (and optional model names) in `.env`. For semantic recall / Feynman embeddings set `EMBED_BASE_URL` / `EMBED_API_KEY` / `EMBED_MODEL` (any OpenAI-compatible 1024-d embeddings host). All these features degrade gracefully when unconfigured — text is stored now and embedded by the nightly batch once a provider is set.
-4. **Seed the concept ontology** (recommended — the RRB NTPC syllabus tree + its
-   prerequisite/contrast graph, so the planner and tutor have something to work
-   with from day one). Idempotent, so it's safe to re-run:
-   ```bash
-   npm run db:seed:ontology
-   ```
-   Optionally also seed an exam config + a few sample cards/PYQs for the demo loop:
-   ```bash
-   npm run db:seed
-   ```
-5. **Run the app**
+4. **Run the app and onboard**
    ```bash
    npm run dev
    ```
-   Open http://localhost:3000 — you land on the review queue. Add concepts at `/concepts`, cards at `/cards`.
+   Open http://localhost:3000. On a fresh database (no `exam_config`) you land on **`/onboarding`** — pick an exam preset (RRB NTPC ships by default) and it seeds the `subject` catalog, `exam_config`, and the concept ontology in one transaction. After that you land on the review queue; add concepts at `/concepts`, cards at `/cards`, and tune the exam at `/exam` (subjects, sections, negative marking, option count, qualifying band). Switching exams later is a destructive, export-first reseed on `/exam`.
+
+   **CLI seeding (optional, instead of onboarding)** — seed a preset's ontology directly (idempotent; pass a preset slug to choose, defaults to RRB NTPC), and optionally a demo exam config + sample cards/PYQs:
+   ```bash
+   npm run db:seed:ontology        # or: npm run db:seed:ontology rrb-ntpc
+   npm run db:seed                 # RRB NTPC demo exam_config + samples
+   ```
 
 ## Project layout
 

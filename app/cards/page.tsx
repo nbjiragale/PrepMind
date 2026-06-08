@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { listCards } from "@/lib/db/queries/cards";
 import { listConcepts } from "@/lib/db/queries/concepts";
+import { listSubjects } from "@/lib/db/queries/subjects";
+import { groundedKeys, subjectLabel } from "@/lib/exam/subjects";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -14,9 +16,15 @@ const stateTone = (s: string) =>
   s === "new" ? "accent" : s === "relearning" ? "warning" : "neutral";
 
 export default async function CardsPage() {
-  const [cards, concepts] = await Promise.all([listCards(), listConcepts()]);
-  const nonGaConcepts = concepts.filter((c) => c.subject !== "ga");
-  const gaConcepts = concepts.filter((c) => c.subject === "ga");
+  const [cards, concepts, subjects] = await Promise.all([
+    listCards(),
+    listConcepts(),
+    listSubjects(),
+  ]);
+  const grounded = new Set(groundedKeys(subjects));
+  // Verified-free subjects (math/reasoning-style) vs grounded subjects (GA-style).
+  const freeConcepts = concepts.filter((c) => !grounded.has(c.subject));
+  const groundedConcepts = concepts.filter((c) => grounded.has(c.subject));
 
   return (
     <div className="mx-auto max-w-shell px-6 py-8 md:px-8">
@@ -41,7 +49,7 @@ export default async function CardsPage() {
               <Select id="concept_id" name="concept_id" required>
                 {concepts.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} ({c.subject})
+                    {c.name} ({subjectLabel(subjects, c.subject)})
                   </option>
                 ))}
               </Select>
@@ -78,12 +86,12 @@ export default async function CardsPage() {
         <div className="mb-8">
           <h2 className="text-h3 mb-1">Generate cards with AI</h2>
           <p className="text-small text-muted mb-4">
-            Math/reasoning cards are fact-checked; GA cards must be grounded in a passage you paste.
-            Generated cards enter the review queue like any other.
+            Free-generation subjects are fact-checked; grounded subjects must be backed by a passage
+            you paste. Generated cards enter the review queue like any other.
           </p>
           <div className="grid gap-4 lg:grid-cols-2">
-            <FactCardsForm concepts={nonGaConcepts} />
-            <GroundedCardsForm concepts={gaConcepts} />
+            <FactCardsForm concepts={freeConcepts} />
+            <GroundedCardsForm concepts={groundedConcepts} />
           </div>
         </div>
       )}

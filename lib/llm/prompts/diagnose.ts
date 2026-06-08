@@ -13,9 +13,9 @@ const KIND_REFERENCE = [
   "trap: fell for a distractor / misread the question",
 ].join("\n");
 
-export function buildDiagnoseSystemPrompt(): string {
+export function buildDiagnoseSystemPrompt(examName: string): string {
   return [
-    "You are an expert exam diagnostician for India's RRB NTPC exam.",
+    `You are an expert exam diagnostician for the ${examName} exam.`,
     "Given one wrong answer, classify the single most likely underlying mistake.",
     "Choose exactly one `kind` from this taxonomy:",
     KIND_REFERENCE,

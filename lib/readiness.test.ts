@@ -10,6 +10,7 @@ const base = (over: Partial<ReadinessInputs> = {}): ReadinessInputs => ({
   ],
   mockScoreFractions: [],
   negRatio: 1 / 3,
+  guessProbability: 0.25,
   targetMarks: null,
   ...over,
 });

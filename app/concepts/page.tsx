@@ -1,4 +1,6 @@
 import { listConcepts } from "@/lib/db/queries/concepts";
+import { listSubjects } from "@/lib/db/queries/subjects";
+import { sortedSubjects, subjectLabel } from "@/lib/exam/subjects";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -8,7 +10,8 @@ import { addConcept } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function ConceptsPage() {
-  const concepts = await listConcepts();
+  const [concepts, subjectRows] = await Promise.all([listConcepts(), listSubjects()]);
+  const subjects = sortedSubjects(subjectRows);
 
   return (
     <div className="mx-auto max-w-shell px-6 py-8 md:px-8">
@@ -23,10 +26,12 @@ export default async function ConceptsPage() {
           </div>
           <div>
             <Label htmlFor="subject">Subject</Label>
-            <Select id="subject" name="subject" defaultValue="ga">
-              <option value="math">math</option>
-              <option value="reasoning">reasoning</option>
-              <option value="ga">ga</option>
+            <Select id="subject" name="subject" defaultValue={subjects[0]?.key}>
+              {subjects.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
             </Select>
           </div>
           <div>
@@ -60,7 +65,7 @@ export default async function ConceptsPage() {
                   {c.subtopic ? ` › ${c.subtopic}` : ""}
                 </p>
               </div>
-              <Badge tone="accent">{c.subject}</Badge>
+              <Badge tone="accent">{subjectLabel(subjects, c.subject)}</Badge>
             </Card>
           ))}
         </div>

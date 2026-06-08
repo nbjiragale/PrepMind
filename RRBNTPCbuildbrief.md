@@ -1,5 +1,7 @@
 # RRB NTPC Personal Learning Platform — Build Brief
 
+> **Multi-exam update (PrepMind).** The platform is now multi-exam: one active exam per instance, chosen via an onboarding picker that seeds a `subject` catalog + `exam_config` + ontology from a preset (`lib/exam/presets.ts`). RRB NTPC below is the **reference preset**. Where this brief says "GA/GK", read "any subject with `generation_mode = 'grounded'`"; where it hardcodes 4 options / 1-of-3 negative marking / a 100-question full mock, those now come from `exam_config` (`options_per_question`, `negative_mark_ratio`, summed section `questions`). The Hard Rules are unchanged in force — only the GA wording generalises. See `CLAUDE.md §1` and `implementationPlan.md`.
+
 > **Hand this entire file to your AI coding agent (Claude / GPT / Claude Code).** It is self-contained: product, hard rules, tech stack, full database schema, build order, and user stories. The data model in §5 is the source of truth.
 
 ---

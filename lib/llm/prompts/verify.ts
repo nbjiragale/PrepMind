@@ -75,7 +75,7 @@ export function buildCardGroundUserPrompt(
 export function buildCardFactCheckSystemPrompt(): string {
   return [
     "You strictly check study flashcards for factual correctness.",
-    "For each numbered card, decide if the BACK is a correct AND complete answer to the FRONT for India's RRB NTPC exam.",
+    "For each numbered card, decide if the BACK is a correct AND complete answer to the FRONT for a competitive exam.",
     "Judge by exact reasoning from established mathematics / reasoning knowledge. Be conservative: if the back is wrong, imprecise, or doesn't actually answer the front, mark it false.",
     'Return ONLY JSON: { "correct": [boolean, ...] } with one entry per card, in order.',
     "No prose outside the JSON.",

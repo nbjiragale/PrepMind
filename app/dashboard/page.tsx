@@ -12,7 +12,8 @@ import {
   getRecentMockFractions,
 } from "@/lib/db/queries/insights";
 import { getTopicTrends } from "@/lib/db/queries/snapshots";
-import { getExamConfig } from "@/lib/db/queries/examConfig";
+import { requireExamConfig } from "@/lib/exam/guard";
+import { guessProbability } from "@/lib/exam/subjects";
 import { computeReadiness } from "@/lib/readiness";
 import { computeStreak } from "@/lib/streak";
 
@@ -28,14 +29,14 @@ export default async function DashboardPage() {
       getReadinessConcepts(),
       getRecentMockFractions(5),
       getTopicTrends(8),
-      getExamConfig(),
+      requireExamConfig(),
     ]);
 
-  const sectionMarks = config?.sections?.reduce((sum, s) => sum + s.marks, 0) ?? 0;
+  const sectionMarks = config.sections.reduce((sum, s) => sum + s.marks, 0);
   const totalMarks = sectionMarks > 0 ? sectionMarks : 100;
-  const negRatio = config?.negative_mark_ratio ?? 1 / 3;
-  // Target = a conventional ~45% qualifying band if not otherwise specified.
-  const targetMarks = Math.round(totalMarks * 0.45);
+  const negRatio = config.negative_mark_ratio;
+  // Target = the exam's qualifying band (from config), applied to total marks.
+  const targetMarks = Math.round(totalMarks * config.qualifying_fraction);
 
   const readiness = computeReadiness({
     totalMarks,
@@ -46,6 +47,7 @@ export default async function DashboardPage() {
     })),
     mockScoreFractions: mockFractions,
     negRatio,
+    guessProbability: guessProbability(config.options_per_question),
     targetMarks,
   });
 

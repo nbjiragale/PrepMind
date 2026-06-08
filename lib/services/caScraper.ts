@@ -5,6 +5,8 @@ import {
   buildCaSplitSystemPrompt,
   buildCaSplitUserPrompt,
 } from "@/lib/llm/prompts/generate";
+import { loadExamContext } from "@/lib/llm/examContext";
+import { getExamConfig } from "@/lib/db/queries/examConfig";
 import { isFirecrawlConfigured, scrapeUrl } from "@/lib/services/firecrawl";
 import { caExamProbability } from "@/lib/caRanking";
 import { insertCaItemDedup } from "@/lib/db/queries/currentAffairs";
@@ -60,8 +62,9 @@ export interface SplitResult {
 }
 
 export async function splitCaPage(markdown: string): Promise<SplitResult> {
+  const { examName } = await loadExamContext();
   const raw = await complete({
-    system: buildCaSplitSystemPrompt(),
+    system: buildCaSplitSystemPrompt(examName),
     messages: [{ role: "user", content: buildCaSplitUserPrompt({ sourceText: markdown }) }],
     task: "bulk",
     // Verbatim copy-out of source excerpts into JSON — no chain-of-thought needed.
@@ -119,6 +122,7 @@ export async function* ingestFromSourcesEvents(
     yield { type: "done", report };
     return;
   }
+  const priors = (await getExamConfig())?.ca_category_priors ?? {};
 
   // Default to yesterday, not today: CA sites publish a day's page late, so
   // today's URL is almost always an unpublished listing/fallback page. Starting
@@ -173,7 +177,7 @@ export async function* ingestFromSourcesEvents(
             source_url: url,
             raw_text: item.raw_text,
             category: item.category,
-            exam_probability: caExamProbability(item.category),
+            exam_probability: caExamProbability(item.category, priors),
             content_hash: hash,
           });
           if (row) {
