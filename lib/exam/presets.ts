@@ -10,7 +10,7 @@ import {
   RRB_NTPC_CONCEPTS,
   RRB_NTPC_PREREQUISITES,
   RRB_NTPC_CONTRASTS,
-} from "@/lib/exam/ontology/rrb-ntpc";
+} from "./ontology/rrb-ntpc.ts";
 
 // CA category priors: probability a news item of that category appears on the
 // exam, used by caRanking.ts (H4). Keyed to the category strings the scraper and
