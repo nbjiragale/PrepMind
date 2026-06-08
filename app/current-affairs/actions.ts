@@ -6,6 +6,8 @@ import { isLlmConfigured } from "@/lib/llm/router";
 import { caExamProbability } from "@/lib/caRanking";
 import { insertCaItem } from "@/lib/db/queries/currentAffairs";
 import { listConcepts } from "@/lib/db/queries/concepts";
+import { listSubjects } from "@/lib/db/queries/subjects";
+import { groundedKeys } from "@/lib/exam/subjects";
 import { generateCaDayCards } from "@/lib/services/currentAffairs";
 import { generateCaDayGaQuestions } from "@/lib/services/generation";
 
@@ -47,8 +49,9 @@ const dayGenSchema = z.object({
 });
 
 async function loadGaConcepts() {
-  const all = await listConcepts();
-  return all.filter((c) => c.subject === "ga");
+  const [all, subjects] = await Promise.all([listConcepts(), listSubjects()]);
+  const grounded = new Set(groundedKeys(subjects));
+  return all.filter((c) => grounded.has(c.subject));
 }
 
 function unmappedNote(unmapped: number): string {

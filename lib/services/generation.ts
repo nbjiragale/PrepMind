@@ -20,6 +20,7 @@ import {
 import { genTokens } from "@/lib/config";
 import { numEnv } from "@/lib/env";
 import { getConcept } from "@/lib/db/queries/concepts";
+import { getGenerationMode } from "@/lib/db/queries/subjects";
 import {
   createGeneratedQuestion,
   getQuestionDetail,
@@ -60,8 +61,8 @@ export async function generateMathQuestions(input: {
 }): Promise<GenerationReport> {
   const concept = await getConcept(input.conceptId);
   if (!concept) throw new Error(`Concept ${input.conceptId} not found`);
-  if (concept.subject === "ga") {
-    throw new Error("GA concepts must use grounded generation, not free math generation.");
+  if ((await getGenerationMode(concept.subject)) === "grounded") {
+    throw new Error("Grounded concepts must use grounded generation, not free generation.");
   }
 
   const raw = await complete({
@@ -106,8 +107,8 @@ export async function generateGaQuestions(input: {
   }
   const concept = await getConcept(input.conceptId);
   if (!concept) throw new Error(`Concept ${input.conceptId} not found`);
-  if (concept.subject !== "ga") {
-    throw new Error("Grounded GA generation is only for GA concepts.");
+  if ((await getGenerationMode(concept.subject)) !== "grounded") {
+    throw new Error("Grounded generation is only for grounded subjects.");
   }
 
   const raw = await complete({
@@ -283,13 +284,14 @@ export async function generateAdversarial(attemptId: number): Promise<Generation
 
   const candidates = parseJson(raw, candidatesSchema);
 
-  // GA adversarial items must stay grounded. Recover the source from the parent's
-  // gen_source if it points at a CA item; otherwise refuse (never invent GA).
+  // Grounded adversarial items must stay grounded. Recover the source from the
+  // parent's gen_source if it points at a CA item; otherwise refuse (never
+  // invent facts for a grounded subject).
   let verify: (q: GeneratedQuestion) => Promise<VerifyResult>;
-  if (concept.subject === "ga") {
+  if ((await getGenerationMode(concept.subject)) === "grounded") {
     const sourceText = await recoverGaSource(a.question_id);
     if (!sourceText) {
-      throw new Error("Cannot ground a GA adversarial variant from this question's source.");
+      throw new Error("Cannot ground an adversarial variant from this question's source.");
     }
     verify = (q) => verifyGaQuestion(q, sourceText);
   } else {

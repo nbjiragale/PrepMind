@@ -1,21 +1,11 @@
 import { withTransaction } from "@/lib/db/client";
-import { getExamConfig } from "@/lib/db/queries/examConfig";
+import { requireExamConfig } from "@/lib/exam/guard";
 import { getQuestionsBySubject, getQuestionsForGrading } from "@/lib/db/queries/questions";
 import { createMockSession, completeMockSession } from "@/lib/db/queries/mocks";
 import { applyAttemptTx } from "@/lib/services/attempt";
 import { scoreMock, perQuestionMs, type PacingPoint, type MockScore } from "@/lib/scoring";
 import { MOCK_SECONDS_PER_QUESTION } from "@/lib/config";
-import type { MockType, PracticeQuestion, Subject } from "@/lib/db/types";
-
-const SUBJECTS: Subject[] = ["math", "reasoning", "ga"];
-
-function subjectForSection(name: string): Subject | null {
-  const n = name.toLowerCase();
-  if (n.includes("math")) return "math";
-  if (n.includes("reason") || n.includes("intelligence") || n.includes("aptitude")) return "reasoning";
-  if (n.includes("aware") || n.includes("general")) return "ga";
-  return null;
-}
+import type { MockType, PracticeQuestion, SubjectKey } from "@/lib/db/types";
 
 export interface StartedMock {
   sessionId: number;
@@ -24,19 +14,20 @@ export interface StartedMock {
   negRatio: number;
 }
 
-// D1/D2 — assemble a mock from verified questions per the exam config.
+// D1/D2 — assemble a mock from verified questions per the exam config. Each
+// section carries an explicit subject_key (migration 0011), so the brittle
+// keyword-sniffing subjectForSection is gone.
 export async function startMock(input: {
   type: MockType;
-  subject?: Subject;
+  subject?: SubjectKey;
 }): Promise<StartedMock> {
-  const exam = await getExamConfig();
-  if (!exam) throw new Error("Configure the exam (sections) before starting a mock.");
+  const exam = await requireExamConfig();
 
-  const wanted: { subject: Subject; count: number; timeS: number }[] = [];
+  const wanted: { subject: SubjectKey; count: number; timeS: number }[] = [];
 
   if (input.type === "sectional") {
     if (!input.subject) throw new Error("Sectional mock requires a subject.");
-    const section = exam.sections.find((s) => subjectForSection(s.name) === input.subject);
+    const section = exam.sections.find((s) => s.subject_key === input.subject);
     wanted.push({
       subject: input.subject,
       count: section?.questions ?? 30,
@@ -44,12 +35,10 @@ export async function startMock(input: {
     });
   } else {
     for (const s of exam.sections) {
-      const subject = subjectForSection(s.name);
-      if (subject) wanted.push({ subject, count: s.questions, timeS: s.time_s });
+      if (s.subject_key) wanted.push({ subject: s.subject_key, count: s.questions, timeS: s.time_s });
     }
-    // Fallback if section names didn't map: a small slice of each subject.
     if (wanted.length === 0) {
-      for (const subject of SUBJECTS) wanted.push({ subject, count: 10, timeS: 0 });
+      throw new Error("No sections are mapped to subjects — configure the exam sections first.");
     }
   }
 
@@ -91,8 +80,8 @@ export async function submitMock(input: {
   answers: { questionId: number; selectedOption: number | null }[];
   pacing: PacingPoint[];
 }): Promise<MockAnalysis> {
-  const exam = await getExamConfig();
-  const negRatio = exam?.negative_mark_ratio ?? 1 / 3;
+  const exam = await requireExamConfig();
+  const negRatio = exam.negative_mark_ratio;
 
   const grading = await getQuestionsForGrading(input.answers.map((a) => a.questionId));
   const byId = new Map(grading.map((g) => [g.id, g]));

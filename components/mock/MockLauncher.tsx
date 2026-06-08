@@ -9,7 +9,12 @@ import { MockRunner } from "@/components/mock/MockRunner";
 import { MockResult } from "@/components/mock/MockResult";
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage";
 import type { StartedMock, MockAnalysis } from "@/lib/services/mock";
-import type { Subject } from "@/lib/db/types";
+import type { SubjectKey } from "@/lib/db/types";
+
+interface SectionOption {
+  subject: SubjectKey;
+  label: string;
+}
 
 // `startedAt` (wall-clock ms) is the source of truth for the remaining timer
 // so reloads/tab-switches can't pause or skew it. Persisted alongside the
@@ -19,18 +24,12 @@ type Phase =
   | { name: "running"; started: StartedMock; startedAt: number }
   | { name: "done"; analysis: MockAnalysis };
 
-const SECTIONS: { subject: Subject; label: string }[] = [
-  { subject: "math", label: "Mathematics" },
-  { subject: "reasoning", label: "Reasoning" },
-  { subject: "ga", label: "General Awareness" },
-];
-
-export function MockLauncher() {
+export function MockLauncher({ sections }: { sections: SectionOption[] }) {
   const [phase, setPhase] = useLocalStorage<Phase>("mock:phase", { name: "choose" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function start(input: { type: "full_cbt1" | "sectional"; subject?: Subject }) {
+  async function start(input: { type: "full_cbt1" | "sectional"; subject?: SubjectKey }) {
     setError(null);
     setLoading(true);
     try {
@@ -100,7 +99,7 @@ export function MockLauncher() {
         <h2 className="text-h3 mb-1">Sectional</h2>
         <p className="text-small text-muted mb-4">Train one section intensively.</p>
         <div className="flex flex-wrap gap-3">
-          {SECTIONS.map((s) => (
+          {sections.map((s) => (
             <Button
               key={s.subject}
               variant="secondary"

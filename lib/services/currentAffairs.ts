@@ -22,6 +22,8 @@ import {
 } from "@/lib/db/queries/currentAffairs";
 import { createCard } from "@/lib/db/queries/cards";
 import { listConcepts } from "@/lib/db/queries/concepts";
+import { listSubjects } from "@/lib/db/queries/subjects";
+import { groundedKeys } from "@/lib/exam/subjects";
 import type { Concept } from "@/lib/db/types";
 
 // Per-night caps for auto-generation (Hard Rule §4 cost discipline). Env-tunable;
@@ -240,7 +242,8 @@ export async function autoGenerateCaCards(opts?: {
   const cardsPerItem = opts?.cardsPerItem ?? CA_AUTOGEN_CARDS_PER_ITEM;
   if (!isLlmConfigured() || maxItems <= 0 || cardsPerItem <= 0) return { items: 0, cards: 0 };
 
-  const gaConcepts = (await listConcepts()).filter((c) => c.subject === "ga");
+  const grounded = new Set(groundedKeys(await listSubjects()));
+  const gaConcepts = (await listConcepts()).filter((c) => grounded.has(c.subject));
   if (gaConcepts.length === 0) return { items: 0, cards: 0 };
 
   const items = await getUnprocessedCaItems(maxItems);

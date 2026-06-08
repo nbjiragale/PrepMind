@@ -10,6 +10,7 @@ import {
 import { verifyFactCards, verifyGroundedCards, type GeneratedCard } from "@/lib/llm/verify";
 import { genTokens } from "@/lib/config";
 import { getConcept } from "@/lib/db/queries/concepts";
+import { getGenerationMode } from "@/lib/db/queries/subjects";
 import { createCard } from "@/lib/db/queries/cards";
 
 // On-demand flashcard generation for a concept. Mirrors the question generator:
@@ -35,8 +36,8 @@ export async function generateFactCards(input: {
 }): Promise<CardGenReport> {
   const concept = await getConcept(input.conceptId);
   if (!concept) throw new Error(`Concept ${input.conceptId} not found`);
-  if (concept.subject === "ga") {
-    throw new Error("GA concepts need a source passage — use grounded card generation.");
+  if ((await getGenerationMode(concept.subject)) === "grounded") {
+    throw new Error("Grounded concepts need a source passage — use grounded card generation.");
   }
 
   const raw = await complete({
@@ -74,8 +75,8 @@ export async function generateGroundedCards(input: {
   }
   const concept = await getConcept(input.conceptId);
   if (!concept) throw new Error(`Concept ${input.conceptId} not found`);
-  if (concept.subject !== "ga") {
-    throw new Error("Grounded card generation is only for GA concepts.");
+  if ((await getGenerationMode(concept.subject)) !== "grounded") {
+    throw new Error("Grounded card generation is only for grounded subjects.");
   }
 
   const raw = await complete({

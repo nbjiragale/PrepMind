@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listConcepts } from "@/lib/db/queries/concepts";
+import { listSubjects } from "@/lib/db/queries/subjects";
 import { listEdges, getGraphData } from "@/lib/db/queries/edges";
 import { listAllResources } from "@/lib/db/queries/resources";
 import { Card } from "@/components/ui/Card";
@@ -14,11 +15,12 @@ import { addConceptEdge } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function GraphPage() {
-  const [concepts, edges, graph, resources] = await Promise.all([
+  const [concepts, edges, graph, resources, subjects] = await Promise.all([
     listConcepts(),
     listEdges(),
     getGraphData(),
     listAllResources(),
+    listSubjects(),
   ]);
 
   if (concepts.length < 2) {
@@ -49,7 +51,7 @@ export default async function GraphPage() {
         {edges.length === 0 ? (
           <p className="text-secondary text-body">No links yet — add some below to see the map.</p>
         ) : (
-          <GraphCanvas nodes={graph.nodes} edges={graph.edges} />
+          <GraphCanvas nodes={graph.nodes} edges={graph.edges} subjects={subjects} />
         )}
       </Card>
 

@@ -67,9 +67,10 @@ export interface ConceptNeedingQuestions {
   verified_count: number;
 }
 
-// Nightly replenishment target list: weak, high-yield NON-GA concepts that are
-// running low on verified questions (GA must stay grounded, so it's excluded
-// from free generation). Ordered by priority = exam_weight × (1 − p_known).
+// Nightly replenishment target list: weak, high-yield verified_free concepts
+// that are running low on verified questions. Grounded subjects (e.g. GA) must
+// stay grounded, so they're excluded from free generation via a JOIN on
+// subject.generation_mode. Ordered by priority = exam_weight × (1 − p_known).
 export async function getConceptsNeedingQuestions(
   limit = 3,
   minVerified = 5
@@ -80,9 +81,10 @@ export async function getConceptsNeedingQuestions(
             c.exam_weight,
             count(q.id) FILTER (WHERE q.verified) AS verified_count
      FROM concept c
+     JOIN subject s ON s.key = c.subject
      LEFT JOIN concept_mastery m ON m.concept_id = c.id
      LEFT JOIN question q ON q.concept_id = c.id
-     WHERE c.subject <> 'ga'
+     WHERE s.generation_mode = 'verified_free'
      GROUP BY c.id, m.p_known
      HAVING count(q.id) FILTER (WHERE q.verified) < $2
      ORDER BY c.exam_weight * (1 - COALESCE(m.p_known, 0.1)) DESC
