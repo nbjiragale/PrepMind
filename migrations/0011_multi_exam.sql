@@ -46,6 +46,12 @@ ALTER TABLE concept VALIDATE CONSTRAINT concept_subject_fk;
 ALTER TABLE exam_config
     ADD COLUMN IF NOT EXISTS options_per_question INT NOT NULL DEFAULT 4;
 
+-- qualifying_fraction: conventional qualifying band as a fraction of total marks
+-- (0.45 for RRB NTPC). Drives the dashboard readiness target instead of a
+-- hardcoded literal.
+ALTER TABLE exam_config
+    ADD COLUMN IF NOT EXISTS qualifying_fraction REAL NOT NULL DEFAULT 0.45;
+
 -- sections[*].subject_key: explicit mapping replaces the keyword-sniffing
 -- subjectForSection. Backfill the existing row using the same keyword logic so
 -- nothing breaks before the application layer is updated.

@@ -33,6 +33,7 @@ const schema = z.object({
     .or(z.literal("").transform(() => null)),
   negative_mark_ratio: z.coerce.number().min(0).max(1),
   options_per_question: z.coerce.number().int().min(2).default(4),
+  qualifying_fraction: z.coerce.number().min(0).max(1).default(0.45),
   locale: z.string().trim().min(1).default("en"),
   subjects: z.array(subjectSchema).min(1, "Add at least one subject."),
   sections: z.array(sectionSchema).min(1, "Add at least one section."),

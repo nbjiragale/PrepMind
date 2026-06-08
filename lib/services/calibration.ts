@@ -11,8 +11,6 @@ import {
 } from "@/lib/db/queries/calibration";
 import { recomputeCalibrationError } from "@/lib/db/queries/mastery";
 
-const DEFAULT_NEG_RATIO = 1 / 3; // RRB NTPC penalty if exam_config is absent.
-
 export interface CalibrationRefit {
   fitted: boolean;
   nSamples: number;
@@ -32,7 +30,8 @@ export async function refitCalibration(): Promise<CalibrationRefit> {
   }
 
   const config = await getExamConfig();
-  const negRatio = config?.negative_mark_ratio ?? DEFAULT_NEG_RATIO;
+  if (!config) throw new Error("Exam not configured — cannot refit calibration.");
+  const negRatio = config.negative_mark_ratio;
   const evThreshold = evThresholdConfidence(model, negRatio);
   const brier = brierScore(model, samples);
 

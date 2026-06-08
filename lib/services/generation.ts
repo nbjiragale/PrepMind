@@ -21,6 +21,7 @@ import { genTokens } from "@/lib/config";
 import { numEnv } from "@/lib/env";
 import { getConcept } from "@/lib/db/queries/concepts";
 import { getGenerationMode } from "@/lib/db/queries/subjects";
+import { getExamConfig } from "@/lib/db/queries/examConfig";
 import {
   createGeneratedQuestion,
   getQuestionDetail,
@@ -32,14 +33,21 @@ import { getCaItem, getCaItemsByDate } from "@/lib/db/queries/currentAffairs";
 import { diagnoseAttempt } from "@/lib/services/diagnosis";
 import type { Concept } from "@/lib/db/types";
 
-const candidatesSchema = z.array(
-  z.object({
-    stem: z.string().min(1),
-    options: z.array(z.string()).length(4),
-    correct_option: z.number().int().min(0).max(3),
-    explanation: z.string().optional().nullable(),
-  })
-);
+// Option count is exam-driven (exam_config.options_per_question); the candidate
+// schemas are built per call so the verify gate enforces the configured count.
+const makeCandidatesSchema = (optionCount: number) =>
+  z.array(
+    z.object({
+      stem: z.string().min(1),
+      options: z.array(z.string()).length(optionCount),
+      correct_option: z.number().int().min(0).max(optionCount - 1),
+      explanation: z.string().optional().nullable(),
+    })
+  );
+
+async function examOptionCount(): Promise<number> {
+  return (await getExamConfig())?.options_per_question ?? 4;
+}
 
 export type Difficulty = "easy" | "medium" | "hard";
 const DIFFICULTY_VALUE: Record<Difficulty, number> = { easy: 0.3, medium: 0.5, hard: 0.75 };
@@ -83,9 +91,10 @@ export async function generateMathQuestions(input: {
     reasoning: { enabled: false },
   });
 
-  const candidates = parseJson(raw, candidatesSchema);
+  const optionCount = await examOptionCount();
+  const candidates = parseJson(raw, makeCandidatesSchema(optionCount));
   return persistVerified(candidates, {
-    verify: (q) => verifyMathQuestion(q),
+    verify: (q) => verifyMathQuestion(q, optionCount),
     conceptId: input.conceptId,
     source: "ai_generated",
     gen_source: `generated:${concept.subject}`,
@@ -128,9 +137,10 @@ export async function generateGaQuestions(input: {
     reasoning: { enabled: false },
   });
 
-  const candidates = parseJson(raw, candidatesSchema);
+  const optionCount = await examOptionCount();
+  const candidates = parseJson(raw, makeCandidatesSchema(optionCount));
   return persistVerified(candidates, {
-    verify: (q) => verifyGaQuestion(q, input.sourceText),
+    verify: (q) => verifyGaQuestion(q, input.sourceText, optionCount),
     conceptId: input.conceptId,
     source: "ai_generated",
     gen_source: input.genSource,
@@ -142,16 +152,17 @@ export async function generateGaQuestions(input: {
 // one news item often tests multiple GA topics; the LLM picks the best-fit
 // concept per question from the supplied list. Questions whose concept tag
 // doesn't map are skipped (no inventing concepts to avoid miscategorisation).
-const caDayGaCandidatesSchema = z.array(
-  z.object({
-    source_id: z.coerce.number().int(),
-    stem: z.string().min(1),
-    options: z.array(z.string()).length(4),
-    correct_option: z.number().int().min(0).max(3),
-    explanation: z.string().optional().nullable(),
-    concept: z.string().min(1).optional().nullable(),
-  })
-);
+const makeCaDayGaCandidatesSchema = (optionCount: number) =>
+  z.array(
+    z.object({
+      source_id: z.coerce.number().int(),
+      stem: z.string().min(1),
+      options: z.array(z.string()).length(optionCount),
+      correct_option: z.number().int().min(0).max(optionCount - 1),
+      explanation: z.string().optional().nullable(),
+      concept: z.string().min(1).optional().nullable(),
+    })
+  );
 
 export interface CaGaQuestionReport extends GenerationReport {
   unmapped: number;
@@ -194,7 +205,8 @@ export async function generateCaDayGaQuestions(input: {
     reasoning: { enabled: false },
   });
 
-  const candidates = parseJson(raw, caDayGaCandidatesSchema);
+  const optionCount = await examOptionCount();
+  const candidates = parseJson(raw, makeCaDayGaCandidatesSchema(optionCount));
   const report: CaGaQuestionReport = {
     generated: candidates.length,
     verified: 0,
@@ -217,7 +229,7 @@ export async function generateCaDayGaQuestions(input: {
       report.unmapped++;
       continue;
     }
-    const result = await verifyGaQuestion(c, item.raw_text);
+    const result = await verifyGaQuestion(c, item.raw_text, optionCount);
     if (!result.ok) {
       report.rejected.push({ stem: c.stem.slice(0, 80), reason: result.reason });
       continue;
@@ -282,7 +294,8 @@ export async function generateAdversarial(attemptId: number): Promise<Generation
     reasoning: { enabled: false },
   });
 
-  const candidates = parseJson(raw, candidatesSchema);
+  const optionCount = await examOptionCount();
+  const candidates = parseJson(raw, makeCandidatesSchema(optionCount));
 
   // Grounded adversarial items must stay grounded. Recover the source from the
   // parent's gen_source if it points at a CA item; otherwise refuse (never
@@ -293,9 +306,9 @@ export async function generateAdversarial(attemptId: number): Promise<Generation
     if (!sourceText) {
       throw new Error("Cannot ground an adversarial variant from this question's source.");
     }
-    verify = (q) => verifyGaQuestion(q, sourceText);
+    verify = (q) => verifyGaQuestion(q, sourceText, optionCount);
   } else {
-    verify = (q) => verifyMathQuestion(q);
+    verify = (q) => verifyMathQuestion(q, optionCount);
   }
 
   return persistVerified(candidates.slice(0, 1), {

@@ -4,7 +4,7 @@ import { RefitButton } from "@/components/calibration/RefitButton";
 import { AdversarialButton } from "@/components/diagnosis/AdversarialButton";
 import { getConfidenceAccuracy, getLatestCalibrationModel } from "@/lib/db/queries/calibration";
 import { getConfidentWrongAttempts } from "@/lib/db/queries/attempts";
-import { getExamConfig } from "@/lib/db/queries/examConfig";
+import { requireExamConfig } from "@/lib/exam/guard";
 import {
   predictAccuracy,
   expectedValue,
@@ -19,11 +19,11 @@ export default async function CalibrationPage() {
   const [buckets, model, config, confidentWrong] = await Promise.all([
     getConfidenceAccuracy(),
     getLatestCalibrationModel(),
-    getExamConfig(),
+    requireExamConfig(),
     getConfidentWrongAttempts(4, 20),
   ]);
 
-  const negRatio = config?.negative_mark_ratio ?? 1 / 3;
+  const negRatio = config.negative_mark_ratio;
   const breakEven = breakEvenP(negRatio);
   const logistic: LogisticModel | null =
     model?.coef_confidence != null && model.coef_intercept != null

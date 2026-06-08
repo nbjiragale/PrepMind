@@ -22,15 +22,18 @@ export interface VerifyResult {
 const PASS: VerifyResult = { ok: true, reason: "verified" };
 const fail = (reason: string): VerifyResult => ({ ok: false, reason });
 
-// Shared structural gate (all sources): exactly 4 distinct non-empty options, a
-// correct index in range, a non-empty stem.
-export function checkStructure(q: GeneratedQuestion): VerifyResult {
+// Shared structural gate (all sources): exactly `optionCount` distinct non-empty
+// options, a correct index in range, a non-empty stem. optionCount is exam-driven
+// (exam_config.options_per_question); defaults to 4 for RRB NTPC.
+export function checkStructure(q: GeneratedQuestion, optionCount = 4): VerifyResult {
   if (!q.stem?.trim()) return fail("empty stem");
-  if (!Array.isArray(q.options) || q.options.length !== 4) return fail("must have exactly 4 options");
+  if (!Array.isArray(q.options) || q.options.length !== optionCount) {
+    return fail(`must have exactly ${optionCount} options`);
+  }
   if (q.options.some((o) => !o?.trim())) return fail("an option is empty");
   const norm = q.options.map((o) => o.trim().toLowerCase());
-  if (new Set(norm).size !== 4) return fail("options are not all distinct");
-  if (!Number.isInteger(q.correct_option) || q.correct_option < 0 || q.correct_option > 3) {
+  if (new Set(norm).size !== optionCount) return fail("options are not all distinct");
+  if (!Number.isInteger(q.correct_option) || q.correct_option < 0 || q.correct_option >= optionCount) {
     return fail("correct_option out of range");
   }
   return PASS;
@@ -44,8 +47,8 @@ export interface MathSolve {
 
 // Math/reasoning judgement: structure + an independent re-solve that must be
 // well-posed, unique, and agree with the claimed answer.
-export function judgeMath(q: GeneratedQuestion, solve: MathSolve): VerifyResult {
-  const structure = checkStructure(q);
+export function judgeMath(q: GeneratedQuestion, solve: MathSolve, optionCount = 4): VerifyResult {
+  const structure = checkStructure(q, optionCount);
   if (!structure.ok) return structure;
   if (!solve.solvable) return fail("verifier: question not well-posed");
   if (!solve.unique) return fail("verifier: more than one correct option");
@@ -63,10 +66,11 @@ export interface GaGround {
 export function judgeGa(
   q: GeneratedQuestion,
   sourceText: string,
-  ground: GaGround
+  ground: GaGround,
+  optionCount = 4
 ): VerifyResult {
   if (!sourceText?.trim()) return fail("GA verification requires source text");
-  const structure = checkStructure(q);
+  const structure = checkStructure(q, optionCount);
   if (!structure.ok) return structure;
   if (!ground.all_grounded) return fail("verifier: a fact does not trace to the source");
   if (ground.correct_option !== q.correct_option) {

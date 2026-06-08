@@ -12,6 +12,8 @@ export interface ExamConfigInput {
   negative_mark_ratio: number;
   /** Number of MCQ answer choices; defaults to 4 when omitted. */
   options_per_question?: number;
+  /** Qualifying band as a fraction of total marks; defaults to 0.45 when omitted. */
+  qualifying_fraction?: number;
   locale: string;
   sections: ExamSection[];
 }
@@ -28,14 +30,15 @@ export async function saveExamConfig(
     await query(`DELETE FROM exam_config`, [], client);
     const row = await queryOne<ExamConfig>(
       `INSERT INTO exam_config
-         (exam_name, exam_date, negative_mark_ratio, options_per_question, locale, sections)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+         (exam_name, exam_date, negative_mark_ratio, options_per_question, qualifying_fraction, locale, sections)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
        RETURNING *`,
       [
         input.exam_name,
         input.exam_date,
         input.negative_mark_ratio,
         input.options_per_question ?? 4,
+        input.qualifying_fraction ?? 0.45,
         input.locale,
         JSON.stringify(input.sections),
       ],
