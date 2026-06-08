@@ -2,23 +2,27 @@
 // always followed by the verify gate (lib/llm/verify.ts) — these prompts ask for
 // quality, the gate enforces it.
 
-const JSON_QUESTION_SHAPE = [
-  "Return ONLY a JSON array of question objects, each with keys:",
-  '- "stem": the question text',
-  '- "options": array of exactly 4 distinct answer strings',
-  '- "correct_option": integer index 0..3 of the correct option',
-  '- "explanation": one or two sentences justifying the answer',
-  "No prose outside the JSON array.",
-].join("\n");
+// Option count is exam-driven (exam_config.options_per_question); the shape
+// description and index range follow it, default 4 for RRB NTPC.
+const jsonQuestionShape = (optionCount = 4) =>
+  [
+    "Return ONLY a JSON array of question objects, each with keys:",
+    '- "stem": the question text',
+    `- "options": array of exactly ${optionCount} distinct answer strings`,
+    `- "correct_option": integer index 0..${optionCount - 1} of the correct option`,
+    '- "explanation": one or two sentences justifying the answer',
+    "No prose outside the JSON array.",
+  ].join("\n");
 
-// C3 — fresh math/reasoning. The model may use its own knowledge here (unlike
-// GA); the verify gate independently re-solves to confirm the answer.
-export function buildMathSystemPrompt(): string {
+// C3 — fresh math/reasoning (a verified_free subject). The model may use its own
+// knowledge here (unlike grounded subjects); the verify gate independently
+// re-solves to confirm the answer.
+export function buildMathSystemPrompt(examName: string, optionCount = 4): string {
   return [
-    "You are an item writer for India's RRB NTPC quantitative aptitude and reasoning sections.",
+    `You are an item writer for the ${examName} exam's quantitative and reasoning content.`,
     "Write self-contained MCQs solvable by exact computation — no ambiguity, exactly one correct option.",
-    "Distractors must be plausible (reflect common errors), all four options distinct.",
-    JSON_QUESTION_SHAPE,
+    "Distractors must be plausible (reflect common errors), all options distinct.",
+    jsonQuestionShape(optionCount),
   ].join("\n");
 }
 
@@ -36,13 +40,13 @@ export function buildMathUserPrompt(input: {
 
 // C4 — GA strictly from source text (Hard Rule §2.1). Every fact must trace to
 // the passage; the verify gate re-checks grounding against the same source.
-export function buildGaSystemPrompt(): string {
+export function buildGaSystemPrompt(examName: string, optionCount = 4): string {
   return [
-    "You are an item writer for the General Awareness section of India's RRB NTPC exam.",
+    `You are an item writer for a source-grounded section of the ${examName} exam.`,
     "CRITICAL: Use ONLY facts stated in the SOURCE passage below. Do not add any fact from your own knowledge.",
     "Every option — correct and distractors — must be checkable against the SOURCE. If the SOURCE lacks enough material, return an empty array [].",
-    "Exactly one correct option; the other three must be wrong per the SOURCE but plausible.",
-    JSON_QUESTION_SHAPE,
+    "Exactly one correct option; the others must be wrong per the SOURCE but plausible.",
+    jsonQuestionShape(optionCount),
   ].join("\n");
 }
 
@@ -62,12 +66,12 @@ export function buildGaUserPrompt(input: {
 }
 
 // C5 — adversarial variant that forces the exact distinction the learner missed.
-export function buildAdversarialSystemPrompt(): string {
+export function buildAdversarialSystemPrompt(optionCount = 4): string {
   return [
     "You are an item writer creating a targeted variant to fix one specific learner mistake.",
     "Write ONE new MCQ on the same concept that forces the learner to apply the exact distinction they got wrong.",
-    "It must be a genuinely different item (new numbers/framing), not a reword. Exactly one correct option, four distinct plausible options.",
-    JSON_QUESTION_SHAPE,
+    "It must be a genuinely different item (new numbers/framing), not a reword. Exactly one correct option, all options distinct and plausible.",
+    jsonQuestionShape(optionCount),
   ].join("\n");
 }
 
@@ -94,12 +98,12 @@ export function buildAdversarialUserPrompt(input: {
 // One news item often spans multiple GA topics (e.g. ISRO launch = science +
 // defence + achievements), so each card is tagged to its best-fit GA concept
 // from the supplied list rather than the whole batch sharing one tag.
-export function buildCaCardSystemPrompt(): string {
+export function buildCaCardSystemPrompt(examName: string): string {
   return [
-    "You write spaced-repetition flashcards from a news item for an RRB NTPC aspirant.",
+    `You write spaced-repetition flashcards from a news item for a ${examName} aspirant.`,
     "CRITICAL: Use ONLY facts stated in the SOURCE. Do not add outside knowledge.",
     "Each card is one exam-relevant fact: a short front (question/cue) and a short back (answer), both traceable to the SOURCE.",
-    "Tag every card with the single best-fit GA concept from the CONCEPTS list — use the exact concept name as written. If no concept fits a fact, omit that card.",
+    "Tag every card with the single best-fit concept from the CONCEPTS list — use the exact concept name as written. If no concept fits a fact, omit that card.",
     "Return ONLY a JSON array of objects with keys:",
     '- "front": the cue/question',
     '- "back": the answer',
@@ -140,13 +144,13 @@ function renderCaDaySources(sources: CaDaySource[]): string {
 // pass, so the model dedupes and picks the most exam-relevant facts across all
 // of them instead of one item at a time. Each card stays grounded in exactly one
 // SOURCE and is tagged with that SOURCE's id, so provenance (ca:<id>) survives.
-export function buildCaDayCardSystemPrompt(): string {
+export function buildCaDayCardSystemPrompt(examName: string): string {
   return [
-    "You write spaced-repetition flashcards from a day's current-affairs items for an RRB NTPC aspirant.",
+    `You write spaced-repetition flashcards from a day's current-affairs items for a ${examName} aspirant.`,
     "You are given several numbered SOURCE items. Across ALL of them, select the most exam-relevant facts and avoid duplicates (if two SOURCES cover the same fact, keep one card).",
     "CRITICAL: Each card must use ONLY facts stated in a SINGLE SOURCE. Do not combine facts across SOURCES and do not add outside knowledge.",
     "Each card is one exam-relevant fact: a short front (cue/question) and a short back (answer), both traceable to that one SOURCE.",
-    "Tag every card with the id of the SOURCE it came from, and with the single best-fit GA concept from the CONCEPTS list (use the exact concept name). If no concept fits a fact, omit that card.",
+    "Tag every card with the id of the SOURCE it came from, and with the single best-fit concept from the CONCEPTS list (use the exact concept name). If no concept fits a fact, omit that card.",
     "Return ONLY a JSON array of objects with keys:",
     '- "source_id": the integer id of the SOURCE this card is grounded in',
     '- "front": the cue/question',
@@ -174,18 +178,18 @@ export function buildCaDayCardUserPrompt(input: {
 // items in one pass: the model dedupes and prioritises across all SOURCES, but
 // each question stays grounded in a SINGLE SOURCE and is tagged with that
 // SOURCE's id so provenance (ca:<id>) — and adversarial re-grounding — survives.
-export function buildCaDayGaQuestionSystemPrompt(): string {
+export function buildCaDayGaQuestionSystemPrompt(examName: string, optionCount = 4): string {
   return [
-    "You are an item writer for the General Awareness section of India's RRB NTPC exam.",
+    `You are an item writer for a source-grounded section of the ${examName} exam.`,
     "You are given several numbered SOURCE items from one day. Across ALL of them, write the most exam-relevant MCQs and avoid duplicates (don't ask the same fact twice).",
     "CRITICAL: Each question must use ONLY facts stated in a SINGLE SOURCE. Do not combine facts across SOURCES and do not add any fact from your own knowledge.",
-    "Every option — correct and distractors — must be checkable against that one SOURCE. Exactly one correct option; the other three wrong per the SOURCE but plausible.",
-    "Tag every question with the id of the SOURCE it is grounded in, and with the single best-fit GA concept from the CONCEPTS list (exact name). If no concept fits, omit that question.",
+    "Every option — correct and distractors — must be checkable against that one SOURCE. Exactly one correct option; the others wrong per the SOURCE but plausible.",
+    "Tag every question with the id of the SOURCE it is grounded in, and with the single best-fit concept from the CONCEPTS list (exact name). If no concept fits, omit that question.",
     "Return ONLY a JSON array of objects with keys:",
     '- "source_id": the integer id of the SOURCE this question is grounded in',
     '- "stem": the question text',
-    '- "options": array of exactly 4 distinct answer strings',
-    '- "correct_option": integer index 0..3 of the correct option',
+    `- "options": array of exactly ${optionCount} distinct answer strings`,
+    `- "correct_option": integer index 0..${optionCount - 1} of the correct option`,
     '- "explanation": one or two sentences justifying the answer',
     '- "concept": the exact concept name from CONCEPTS',
     "No prose outside the JSON array.",
@@ -208,9 +212,9 @@ export function buildCaDayGaQuestionUserPrompt(input: {
 
 // Flashcards for a math/reasoning concept: formulas, definitions, rules, method
 // steps. Generated freely, then independently fact-checked before they're saved.
-export function buildFactCardSystemPrompt(): string {
+export function buildFactCardSystemPrompt(examName: string): string {
   return [
-    "You write spaced-repetition flashcards for an RRB NTPC aspirant studying a math or reasoning concept.",
+    `You write spaced-repetition flashcards for a ${examName} aspirant studying a freely-generated (non-source-grounded) concept.`,
     "Each card captures ONE exam-relevant nugget: a formula, definition, rule, or method step. Front = a short cue/question; back = the precise answer.",
     "Use only well-established, universally-correct facts. Keep both sides short and unambiguous — no trick or opinion content.",
     'Return ONLY a JSON array of objects with keys "front" and "back". No prose outside the JSON.',
@@ -228,9 +232,9 @@ export function buildFactCardUserPrompt(input: {
 
 // Flashcards for one concept, grounded strictly in a pasted SOURCE passage (GA —
 // Hard Rule §2.1). Every card is re-checked against the SOURCE before saving.
-export function buildPassageCardSystemPrompt(): string {
+export function buildPassageCardSystemPrompt(examName: string): string {
   return [
-    "You write spaced-repetition flashcards strictly from a SOURCE passage for an RRB NTPC aspirant.",
+    `You write spaced-repetition flashcards strictly from a SOURCE passage for a ${examName} aspirant.`,
     "CRITICAL: Use ONLY facts stated in the SOURCE. Do not add outside knowledge.",
     "Each card is one exam-relevant fact about the concept: a short front (cue/question) and short back (answer), both traceable to the SOURCE.",
     'Return ONLY a JSON array of objects with keys "front" and "back". Return [] if the SOURCE has no exam-relevant fact. No prose outside the JSON.',
@@ -256,9 +260,9 @@ export function buildPassageCardUserPrompt(input: {
 // chain (verifyGroundedCards, GA verify gate) keeps working unchanged. The
 // category whitelist matches lib/caRanking.ts so caExamProbability resolves
 // against a known key (anything else gets the neutral 0.5 prior).
-export function buildCaSplitSystemPrompt(): string {
+export function buildCaSplitSystemPrompt(examName: string): string {
   return [
-    "You split a scraped current-affairs page into discrete news items for an RRB NTPC aspirant.",
+    `You split a scraped current-affairs page into discrete news items for a ${examName} aspirant.`,
     "CRITICAL: For each item, raw_text MUST be a verbatim contiguous excerpt copied directly from the SOURCE — no paraphrasing, no rewriting, no combining across distant sections.",
     "Keep each raw_text SHORT: 1-3 sentences, 40-120 words. Pick the sentences that contain the exam-relevant fact(s). Skip URLs, markdown link syntax, citations, and footnotes — choose excerpts that don't contain them.",
     "Return at most 15 items, ranked by exam relevance (most likely to be asked first).",
@@ -289,9 +293,9 @@ export function buildCaSplitUserPrompt(input: { sourceText: string }): string {
 // grounding source for downstream GA generation (Hard Rule §2.1). The caller
 // enforces that the response actually carried grounding metadata; a model
 // answering from memory (no citations) is rejected, never stored.
-export function buildCaFetchSystemPrompt(): string {
+export function buildCaFetchSystemPrompt(examName: string): string {
   return [
-    "You gather recent current-affairs items relevant to India's RRB NTPC exam, using web search.",
+    `You gather recent current-affairs items relevant to the ${examName} exam, using web search.`,
     "Use the most recent reliable reporting; every fact must come from your search results, never from memory.",
     "Each item must be a self-contained, factually precise blurb (1–3 sentences) suitable for exam GA prep.",
     "Prefer high-yield categories: appointments, awards, sports, schemes, defence, economy, international, science, summits, days.",
@@ -306,9 +310,9 @@ export function buildCaFetchUserPrompt(input: { date: string; count: number }): 
   ].join("\n");
 }
 
-export function buildCaSummarySystemPrompt(): string {
+export function buildCaSummarySystemPrompt(examName: string): string {
   return [
-    "You summarise a news item for an RRB NTPC aspirant's daily revision digest.",
+    `You summarise a news item for a ${examName} aspirant's daily revision digest.`,
     "Write ONE crisp sentence capturing the exam-relevant fact(s), using ONLY the SOURCE.",
     "No preamble, no outside facts. Output the sentence only.",
   ].join("\n");

@@ -45,8 +45,14 @@ const makeCandidatesSchema = (optionCount: number) =>
     })
   );
 
-async function examOptionCount(): Promise<number> {
-  return (await getExamConfig())?.options_per_question ?? 4;
+// Exam name + option count for generation prompts and the verify gate. One read
+// of the singleton exam_config; neutral fallbacks for non-interactive callers.
+async function examGenContext(): Promise<{ examName: string; optionCount: number }> {
+  const config = await getExamConfig();
+  return {
+    examName: config?.exam_name ?? "the exam",
+    optionCount: config?.options_per_question ?? 4,
+  };
 }
 
 export type Difficulty = "easy" | "medium" | "hard";
@@ -73,8 +79,9 @@ export async function generateMathQuestions(input: {
     throw new Error("Grounded concepts must use grounded generation, not free generation.");
   }
 
+  const { examName, optionCount } = await examGenContext();
   const raw = await complete({
-    system: buildMathSystemPrompt(),
+    system: buildMathSystemPrompt(examName, optionCount),
     messages: [
       {
         role: "user",
@@ -91,7 +98,6 @@ export async function generateMathQuestions(input: {
     reasoning: { enabled: false },
   });
 
-  const optionCount = await examOptionCount();
   const candidates = parseJson(raw, makeCandidatesSchema(optionCount));
   return persistVerified(candidates, {
     verify: (q) => verifyMathQuestion(q, optionCount),
@@ -120,8 +126,9 @@ export async function generateGaQuestions(input: {
     throw new Error("Grounded generation is only for grounded subjects.");
   }
 
+  const { examName, optionCount } = await examGenContext();
   const raw = await complete({
-    system: buildGaSystemPrompt(),
+    system: buildGaSystemPrompt(examName, optionCount),
     messages: [
       {
         role: "user",
@@ -137,7 +144,6 @@ export async function generateGaQuestions(input: {
     reasoning: { enabled: false },
   });
 
-  const optionCount = await examOptionCount();
   const candidates = parseJson(raw, makeCandidatesSchema(optionCount));
   return persistVerified(candidates, {
     verify: (q) => verifyGaQuestion(q, input.sourceText, optionCount),
@@ -188,8 +194,9 @@ export async function generateCaDayGaQuestions(input: {
     throw new Error("GA generation requires source text — ungrounded GA is not allowed.");
   }
 
+  const { examName, optionCount } = await examGenContext();
   const raw = await complete({
-    system: buildCaDayGaQuestionSystemPrompt(),
+    system: buildCaDayGaQuestionSystemPrompt(examName, optionCount),
     messages: [
       {
         role: "user",
@@ -205,7 +212,6 @@ export async function generateCaDayGaQuestions(input: {
     reasoning: { enabled: false },
   });
 
-  const optionCount = await examOptionCount();
   const candidates = parseJson(raw, makeCaDayGaCandidatesSchema(optionCount));
   const report: CaGaQuestionReport = {
     generated: candidates.length,
@@ -273,8 +279,9 @@ export async function generateAdversarial(attemptId: number): Promise<Generation
   const concept = await getConcept(a.concept_id);
   if (!concept) throw new Error(`Concept ${a.concept_id} not found`);
 
+  const { optionCount } = await examGenContext();
   const raw = await complete({
-    system: buildAdversarialSystemPrompt(),
+    system: buildAdversarialSystemPrompt(optionCount),
     messages: [
       {
         role: "user",
@@ -294,7 +301,6 @@ export async function generateAdversarial(attemptId: number): Promise<Generation
     reasoning: { enabled: false },
   });
 
-  const optionCount = await examOptionCount();
   const candidates = parseJson(raw, makeCandidatesSchema(optionCount));
 
   // Grounded adversarial items must stay grounded. Recover the source from the

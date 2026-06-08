@@ -50,7 +50,7 @@ export async function regenerateProfile(): Promise<LearnerProfile | null> {
   };
 
   const summary = await complete({
-    system: buildProfileSystemPrompt(),
+    system: buildProfileSystemPrompt(config?.exam_name ?? "the exam"),
     messages: [{ role: "user", content: buildProfileUserPrompt(inputs) }],
     task: "tutor",
     maxTokens: 800,

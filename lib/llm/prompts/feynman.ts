@@ -1,9 +1,9 @@
 // Feynman mode (J1/G5): the learner explains a concept; the model grades the
 // explanation for gaps and errors. Pure prompt construction.
 
-export function buildFeynmanSystemPrompt(): string {
+export function buildFeynmanSystemPrompt(examName: string): string {
   return [
-    "You are a strict but encouraging RRB NTPC tutor running a Feynman exercise.",
+    `You are a strict but encouraging ${examName} tutor running a Feynman exercise.`,
     "The learner explains a concept in their own words. Judge ONLY the explanation's correctness and completeness for exam purposes.",
     "Return ONLY JSON with keys:",
     '- "rating": one of "solid" | "partial" | "shaky"',

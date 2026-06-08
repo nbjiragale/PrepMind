@@ -5,6 +5,7 @@ import {
   buildCaSplitSystemPrompt,
   buildCaSplitUserPrompt,
 } from "@/lib/llm/prompts/generate";
+import { loadExamContext } from "@/lib/llm/examContext";
 import { isFirecrawlConfigured, scrapeUrl } from "@/lib/services/firecrawl";
 import { caExamProbability } from "@/lib/caRanking";
 import { insertCaItemDedup } from "@/lib/db/queries/currentAffairs";
@@ -60,8 +61,9 @@ export interface SplitResult {
 }
 
 export async function splitCaPage(markdown: string): Promise<SplitResult> {
+  const { examName } = await loadExamContext();
   const raw = await complete({
-    system: buildCaSplitSystemPrompt(),
+    system: buildCaSplitSystemPrompt(examName),
     messages: [{ role: "user", content: buildCaSplitUserPrompt({ sourceText: markdown }) }],
     task: "bulk",
     // Verbatim copy-out of source excerpts into JSON — no chain-of-thought needed.

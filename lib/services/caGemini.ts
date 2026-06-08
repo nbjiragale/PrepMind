@@ -2,6 +2,7 @@ import { z } from "zod";
 import { completeGrounded, isGroundingConfigured } from "@/lib/llm/router";
 import { parseJson } from "@/lib/llm/json";
 import { buildCaFetchSystemPrompt, buildCaFetchUserPrompt } from "@/lib/llm/prompts/generate";
+import { loadExamContext } from "@/lib/llm/examContext";
 import { caExamProbability } from "@/lib/caRanking";
 import { insertCaItemDedup } from "@/lib/db/queries/currentAffairs";
 import { contentHash, normaliseCategory } from "@/lib/caScraperHash";
@@ -47,10 +48,11 @@ export async function ingestFromGemini(opts?: { date?: string }): Promise<CaScra
   const date = opts?.date ?? new Date().toISOString().slice(0, 10);
   const count = getMaxItems();
 
+  const { examName } = await loadExamContext();
   let result;
   try {
     result = await completeGrounded({
-      system: buildCaFetchSystemPrompt(),
+      system: buildCaFetchSystemPrompt(examName),
       messages: [{ role: "user", content: buildCaFetchUserPrompt({ date, count }) }],
       // Headroom for the JSON array plus the model's grounded reasoning.
       maxTokens: 8192,
