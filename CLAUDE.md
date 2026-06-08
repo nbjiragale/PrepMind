@@ -90,7 +90,7 @@ Abstract the provider behind a router so DeepSeek / Claude / Gemini / Sarvam are
 │   ├── db/
 │   │   ├── schema.sql           # Canonical migration (source of truth)
 │   │   └── queries/             # One file per domain (cards.ts, attempts.ts, subjects.ts…)
-│   ├── exam/                   # Presets, subject helpers, ontology data, requireExamConfig guard (mx)
+│   ├── exam/                   # Presets, subject helpers, ontology data + LLM generator, requireExamConfig guard (mx)
 │   ├── fsrs/                   # FSRS wrapper around ts-fsrs
 │   ├── bkt.ts                  # Bayesian Knowledge Tracing (15 lines)
 │   ├── llm/
