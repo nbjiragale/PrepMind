@@ -81,8 +81,104 @@ export const RRB_NTPC: ExamPreset = {
   },
 };
 
-// Registry of all bundled presets. The onboarding picker shows these.
-export const EXAM_PRESETS: readonly ExamPreset[] = [RRB_NTPC];
+// Lean presets ship without a hand-authored ontology: onboarding seeds subjects
+// + exam_config, and the learner drafts the concept tree in-app via the AI
+// ontology generator (/exam → "Generate a starter ontology"). Keeps new exams
+// cheap to add and accurate where it matters (structure/marking), while concepts
+// stay reviewable-before-seed.
+const EMPTY_ONTOLOGY: OntologyData = { concepts: [], prerequisites: [], contrasts: [] };
+
+// ─── SSC CGL (Tier-1) ─────────────────────────────────────────────────────────
+// Combined Graduate Level, Tier-1 CBT: 4 sections × 25 Q × 2 marks = 100 Q / 200
+// marks in 60 min. Wrong answers lose 0.5 marks; normalised against the 2-mark
+// reward that is 0.25 per question (scoreMock works in per-question units). 4
+// options. Tier-1 is screening/qualifying; 0.50 is a soft readiness target, not
+// an official cutoff. GA is grounded (Hard Rule §1); the rest are verified-free.
+export const SSC_CGL: ExamPreset = {
+  name: "SSC CGL",
+  slug: "ssc-cgl",
+  subjects: [
+    { key: "reasoning", label: "General Intelligence & Reasoning", generation_mode: "verified_free", position: 0 },
+    { key: "quant",     label: "Quantitative Aptitude",            generation_mode: "verified_free", position: 1 },
+    { key: "english",   label: "English Comprehension",            generation_mode: "verified_free", position: 2 },
+    { key: "ga",        label: "General Awareness",                generation_mode: "grounded",      position: 3 },
+  ],
+  sections: [
+    { name: "General Intelligence & Reasoning", questions: 25, marks: 50, time_s: 0, subject_key: "reasoning" },
+    { name: "Quantitative Aptitude",            questions: 25, marks: 50, time_s: 0, subject_key: "quant"     },
+    { name: "English Comprehension",            questions: 25, marks: 50, time_s: 0, subject_key: "english"   },
+    { name: "General Awareness",                questions: 25, marks: 50, time_s: 0, subject_key: "ga"        },
+  ],
+  negative_mark_ratio: 0.25, // −0.5 marks per wrong on a 2-mark question
+  options_per_question: 4,
+  qualifying_fraction: 0.5,
+  ca_category_priors: {
+    science:      0.80,
+    schemes:      0.75,
+    appointments: 0.70,
+    awards:       0.70,
+    sports:       0.65,
+    technology:   0.65,
+    economy:      0.60,
+    summits:      0.60,
+    days:         0.60,
+    defence:      0.60,
+    agreements:   0.55,
+    books:        0.55,
+    obituaries:   0.45,
+  },
+  ontology: EMPTY_ONTOLOGY,
+};
+
+// ─── Karnataka State Police — Civil Police Constable ──────────────────────────
+// KSP CPC written test: a single combined objective paper of 100 MCQs × 1 mark =
+// 100 marks (~90 min), 0.25 negative per wrong, 30% qualifying, bilingual
+// (Kannada + English). The official paper isn't formally sub-sectioned; the
+// section split below is an app-side study breakdown of the published syllabus so
+// practice/mocks/planner are useful (counts sum to 100). Factual domains (GS,
+// science, language) are grounded (Hard Rule §1); ability domains are verified-free.
+export const KSP_CONSTABLE: ExamPreset = {
+  name: "Karnataka Police Constable",
+  slug: "ksp-constable",
+  subjects: [
+    { key: "gs",        label: "General Studies & Current Affairs", generation_mode: "grounded",      position: 0 },
+    { key: "science",   label: "General Science",                   generation_mode: "grounded",      position: 1 },
+    { key: "reasoning", label: "Mental Ability & Reasoning",        generation_mode: "verified_free", position: 2 },
+    { key: "quant",     label: "Numerical Ability",                 generation_mode: "verified_free", position: 3 },
+    { key: "kannada",   label: "Kannada Language",                  generation_mode: "grounded",      position: 4 },
+  ],
+  sections: [
+    { name: "General Studies & Current Affairs", questions: 35, marks: 35, time_s: 0, subject_key: "gs"        },
+    { name: "General Science",                   questions: 15, marks: 15, time_s: 0, subject_key: "science"   },
+    { name: "Mental Ability & Reasoning",        questions: 20, marks: 20, time_s: 0, subject_key: "reasoning" },
+    { name: "Numerical Ability",                 questions: 20, marks: 20, time_s: 0, subject_key: "quant"     },
+    { name: "Kannada Language",                  questions: 10, marks: 10, time_s: 0, subject_key: "kannada"   },
+  ],
+  negative_mark_ratio: 0.25, // −0.25 marks per wrong on a 1-mark question
+  options_per_question: 4,
+  qualifying_fraction: 0.3, // official minimum qualifying is 30%
+  // Note: the exam is bilingual (Kannada + English); the UI stays English
+  // (schema is language-agnostic via exam_config.locale, defaulted to 'en').
+  ca_category_priors: {
+    science:      0.75,
+    schemes:      0.70,
+    days:         0.65,
+    awards:       0.65,
+    appointments: 0.60,
+    sports:       0.60,
+    defence:      0.60,
+    economy:      0.55,
+    technology:   0.55,
+    summits:      0.50,
+    obituaries:   0.50,
+    books:        0.50,
+    agreements:   0.45,
+  },
+  ontology: EMPTY_ONTOLOGY,
+};
+
+// Registry of all bundled presets. The onboarding picker shows these in order.
+export const EXAM_PRESETS: readonly ExamPreset[] = [RRB_NTPC, SSC_CGL, KSP_CONSTABLE];
 
 /** Look up a preset by its slug. Returns undefined when not found. */
 export function findPreset(slug: string): ExamPreset | undefined {
