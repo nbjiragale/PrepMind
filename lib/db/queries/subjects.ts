@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { query, queryOne } from "@/lib/db/client";
 import type { SubjectKey, SubjectRow, GenerationMode } from "@/lib/db/types";
 
@@ -30,7 +31,8 @@ export interface SubjectInput {
 
 // Upsert — idempotent for seeding exam presets. ON CONFLICT updates label and
 // generation_mode so re-seeding an existing instance doesn't leave stale rows.
-export async function upsertSubject(input: SubjectInput): Promise<SubjectRow> {
+// Pass `tx` to enroll in a caller-managed transaction.
+export async function upsertSubject(input: SubjectInput, tx?: PoolClient): Promise<SubjectRow> {
   const row = await queryOne<SubjectRow>(
     `INSERT INTO subject (key, label, generation_mode, position)
      VALUES ($1, $2, $3, $4)
@@ -39,7 +41,8 @@ export async function upsertSubject(input: SubjectInput): Promise<SubjectRow> {
            generation_mode = EXCLUDED.generation_mode,
            position        = EXCLUDED.position
      RETURNING *`,
-    [input.key, input.label, input.generation_mode, input.position ?? 0]
+    [input.key, input.label, input.generation_mode, input.position ?? 0],
+    tx
   );
   return row!;
 }

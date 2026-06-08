@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { query, queryOne, withTransaction } from "@/lib/db/client";
 import type { ExamConfig, ExamSection } from "@/lib/db/types";
 
@@ -17,9 +18,14 @@ export interface ExamConfigInput {
 
 // exam_config is a singleton (one row per instance — CLAUDE.md §5). Replace it
 // atomically so getExamConfig keeps returning the one current config.
-export async function saveExamConfig(input: ExamConfigInput): Promise<ExamConfig> {
-  return withTransaction(async (tx) => {
-    await query(`DELETE FROM exam_config`, [], tx);
+// Pass `tx` to enroll in a caller-managed transaction (e.g. alongside subject upserts);
+// omit to open a fresh transaction internally.
+export async function saveExamConfig(
+  input: ExamConfigInput,
+  tx?: PoolClient
+): Promise<ExamConfig> {
+  const run = async (client: PoolClient): Promise<ExamConfig> => {
+    await query(`DELETE FROM exam_config`, [], client);
     const row = await queryOne<ExamConfig>(
       `INSERT INTO exam_config
          (exam_name, exam_date, negative_mark_ratio, options_per_question, locale, sections)
@@ -33,8 +39,9 @@ export async function saveExamConfig(input: ExamConfigInput): Promise<ExamConfig
         input.locale,
         JSON.stringify(input.sections),
       ],
-      tx
+      client
     );
     return row!;
-  });
+  };
+  return tx ? run(tx) : withTransaction(run);
 }
