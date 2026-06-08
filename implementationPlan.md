@@ -1,17 +1,13 @@
 # PrepMind: make the platform multi-exam
 Turn the RRB-NTPC-only app into a multi-exam platform. First run (no `exam_config`) shows an onboarding exam-picker; the chosen exam reconfigures subjects, sections, negative-marking, ontology, prompts, and branding. RRB NTPC remains reproducible as one preset. All Hard Rules (`CLAUDE.md §2`) are preserved — `ga`-specific grounding generalizes to a per-subject `generation_mode`, never weakens.
-## Two decisions to confirm BEFORE coding
-These gate the whole plan. My recommendation + the alternative for each; I'll wait for your OK or override before executing.
-### Decision 1 — Subjects model (recommended: per-exam data in `exam_config`)
+## Architectural decisions (confirmed)
+Both confirmed: a dedicated `subject` table (Decision 1) and one active exam per instance (Decision 2).
+### Decision 1 — Subjects model: dedicated `subject` table (confirmed)
 Today `math|reasoning|ga` is a Postgres `CHECK` (`migrations/0001_v1_init.sql:22`), a TS union (`lib/db/types.ts:3`), Zod enums (`app/concepts/actions.ts:9`, `app/mock/actions.ts:8`), and constants (`lib/services/mock.ts:10`, `components/graph/GraphCanvas.tsx:31`).
-Recommendation: drop the DB `CHECK`; keep `concept.subject` as a free-text key; make the subject catalog per-exam data on `exam_config.subjects` JSONB = `[{key, label, generation_mode}]` where `generation_mode` is `grounded` or `verified_free`. Replace every `subject === 'ga'` with a `generation_mode` lookup; validate subject keys against the catalog at Zod boundaries. `sections` gain an explicit `subject_key`, deleting the keyword-sniffing `subjectForSection`.
-Why JSONB over a `subject` table: single active exam (Decision 2) plus `CLAUDE.md §14` (no multi-tenancy) plus KISS. `exam_config` already stores `sections` JSONB; the catalog is tiny, read-mostly, and always loaded with config, so a table plus FK plus joins everywhere is unnecessary.
-Alternative: a dedicated `subject` table with an FK from `concept.subject`. Stronger referential integrity, but more surface area and joins; pick this only if DB-enforced subject keys are worth the added complexity.
-### Decision 2 — Data scoping on exam switch (recommended: one active exam per instance)
-No table has `exam_id`; `exam_config` is a singleton (`lib/db/queries/examConfig.ts` delete-then-insert).
-Recommendation: keep one active exam. First run seeds the chosen exam's subjects/sections/ontology/negative-marking. Switching later is a separate, explicit destructive reseed: export-first (Hard Rule §5 data ownership), typed confirmation, clear exam-scoped derived/study data, then seed the new exam. No `exam_id` columns.
-Why: matches `CLAUDE.md §14` (single-user, no multi-tenancy) and is far smaller than the alternative. First-run is the common path; switching is rare.
-Alternative: add `exam_id` FKs across roughly 10 tables so multiple exams coexist. Much larger, conflicts with §14, and is not recommended.
+Chosen: create a `subject` table (`key` PK, `label`, `generation_mode` CHECK in `('grounded','verified_free')`, `position` for ordering). Drop `concept_subject_check` and add FK `concept.subject -> subject(key)`. `generation_mode` replaces every `subject === 'ga'`: `grounded` = generate only from supplied source text (today's GA — Hard Rule §1 holds for any grounded subject); `verified_free` = free generation + independent re-solve (today's math/reasoning). `sections` gain an explicit `subject_key` referencing `subject.key`, deleting the keyword-sniffing `subjectForSection`.
+Benefit: SQL can JOIN `concept`→`subject` and filter on `generation_mode` directly (e.g. `getConceptsNeedingQuestions`), so the catalog is one DB-enforced source of truth with no drift. Cost: a new query module and FK-safe ordering on reseed.
+### Decision 2 — Data scoping on exam switch: one active exam per instance (confirmed)
+No table has `exam_id`; `exam_config` is a singleton (`lib/db/queries/examConfig.ts` delete-then-insert). Keep one active exam, no `exam_id` columns. First run seeds the chosen exam's `subject` rows + sections + ontology + negative-marking. Switching later is an explicit destructive reseed: export-first (Hard Rule §5), typed confirmation, then an FK-safe clear of exam-scoped data (concept dependents → `concept` → `subject`) and seed of the new exam.
 ## Current state (what's coupled)
 * Subject enum: `migrations/0001_v1_init.sql:22`, `lib/db/types.ts:3`, `app/concepts/actions.ts:9`, `app/mock/actions.ts:8`, `lib/services/mock.ts:10`, `components/graph/GraphCanvas.tsx:31`, `app/concepts/page.tsx (25-30)`.
 * GA special-casing: `lib/services/cardGeneration.ts:38`, `lib/services/cardGeneration.ts:77`, `lib/services/generation.ts:63`, `lib/services/generation.ts:109`, `lib/services/generation.ts:289`, `lib/services/currentAffairs.ts:243`, `lib/db/queries/questions.ts:85`, `app/cards/page.tsx (18-19)`, `app/generate/page.tsx (10-11)`, `app/current-affairs/actions.ts:51`.
@@ -24,25 +20,26 @@ Alternative: add `exam_id` FKs across roughly 10 tables so multiple exams coexis
 * Runner facts: migrations are numbered SQL via `scripts/migrate.ts`; next migration is `0011`; validation commands are `npm test`, `npm run lint`, `npm run build`; the constraint to drop is `concept_subject_check`.
 ## Phased plan (runnable end-to-end at every boundary)
 ### Phase 0 — Foundation: data model and shared contract (sequential; unblocks all)
-* Add `migrations/0011_multi_exam.sql`: drop `concept_subject_check`; keep `idx_concept_subject`; add `exam_config.subjects JSONB`; add `exam_config.options_per_question INT NOT NULL DEFAULT 4`; backfill any existing row to the RRB preset, including `sections[*].subject_key` via today's keyword map.
-* Update `lib/db/types.ts`: widen `Subject` to a string key alias; add `GenerationMode`, `ExamSubject`, `ExamSection` with `subject_key`; extend `ExamConfig` with `subjects` and `options_per_question`.
-* Add `lib/exam/presets.ts`: `ExamPreset` type and `RRB_NTPC` preset with subjects, sections, negative-marking, option count, qualifying fraction, and CA category priors.
+* Add `migrations/0011_multi_exam.sql`: create `subject` (`key` PK, `label`, `generation_mode` CHECK `('grounded','verified_free')`, `position`); seed RRB rows (`math`,`reasoning` = verified_free; `ga` = grounded); drop `concept_subject_check`; add FK `concept.subject -> subject(key)` (NOT VALID then VALIDATE so a legacy bad value surfaces); keep `idx_concept_subject`; add `exam_config.options_per_question INT NOT NULL DEFAULT 4`; backfill any existing `exam_config` row's `sections[*].subject_key` via today's keyword map.
+* Update `lib/db/types.ts`: introduce `SubjectKey = string` (the `concept.subject` value) and a `Subject` row interface (`key`, `label`, `generation_mode`, `position`); add `GenerationMode`; add `subject_key` to `ExamConfig.sections`; add `options_per_question`. Migrate existing `Subject` union usages to `SubjectKey`.
+* Add `lib/db/queries/subjects.ts`: `listSubjects`, `getSubject`, and create/update/reorder, used by onboarding, exam config, services, and the graph.
+* Add `lib/exam/presets.ts`: `ExamPreset` type and the `RRB_NTPC` preset (subjects with modes, sections with `subject_key`, negative-marking, option count, qualifying fraction, CA category priors).
 * Move the RRB ontology data out of `scripts/seed-ontology.ts` into `lib/exam/ontology/rrb-ntpc.ts`.
-* Add `lib/exam/subjects.ts` with pure, unit-tested helpers: `generationModeFor`, `verifiedFreeSubjectKeys`, `groundedSubjectKeys`, `subjectLabel`, `guessProbability`.
+* Add `lib/exam/subjects.ts` with pure, unit-tested helpers over already-loaded subject rows: `generationModeFor(subjects, key)`, `verifiedFreeKeys(subjects)`, `groundedKeys(subjects)`, `subjectLabel(subjects, key)`, plus `guessProbability(optionCount)`.
 * Add `lib/exam/guard.ts`: server helper `requireExamConfig()` redirects to `/onboarding` when config is absent.
-* Update `lib/db/queries/examConfig.ts` to persist/read `subjects` and `options_per_question` while keeping singleton semantics.
+* Update `lib/db/queries/examConfig.ts` to persist/read `options_per_question` and section `subject_key` while keeping singleton semantics.
 Boundary check: the app still runs on a backfilled RRB instance; widening the union is backward-compatible with existing literals.
 ### Phase 1 — Onboarding gate, exam config, and switch flow
-* Add `app/onboarding/page.tsx` and `app/onboarding/actions.ts`: exam-picker with RRB NTPC preset, built with warm ivory canvas, coral primary action, hairlines, and light mode only.
+* Add `app/onboarding/page.tsx` and `app/onboarding/actions.ts`: exam-picker (RRB NTPC preset) that seeds `subject` rows + `exam_config` + ontology in one transaction. Design-system compliant (warm ivory canvas, single coral action, hairlines, light mode only).
 * Update `app/page.tsx`: redirect to `/onboarding` when unconfigured, otherwise `/review`; `/onboarding` redirects to `/review` when already configured.
-* Update `components/exam/ExamConfigForm.tsx` and `app/exam/actions.ts`: edit subjects (`key`, `label`, `generation_mode`) and per-section `subject_key`; remove hardcoded RRB copy; validate sections against the catalog.
-* Add explicit switch flow per Decision 2: export-first guidance, typed confirmation, clear exam-scoped derived/study data, seed the selected exam.
-* Apply `requireExamConfig()` to config-dependent entry pages/actions.
+* Update `components/exam/ExamConfigForm.tsx` and `app/exam/actions.ts`: manage `subject` rows (`key`, `label`, `generation_mode`, `position`) and per-section `subject_key`; remove hardcoded RRB copy; validate section `subject_key`s against existing subjects.
+* Add explicit switch flow per Decision 2: export-first guidance, typed confirmation, then one transaction that clears exam-scoped data FK-safe (dependents → `concept` → `subject`) and seeds the selected exam.
+* Apply `requireExamConfig()` to config-dependent entry pages/actions (replaces the throw at `lib/services/mock.ts:33` and the silent fallbacks).
 ### Phase 2 — Generalize GA to `generation_mode`
-* Services: update `lib/services/cardGeneration.ts`, `lib/services/generation.ts`, and `lib/services/currentAffairs.ts` to use `generationModeFor(...)` instead of `subject === 'ga'` or `subject !== 'ga'`.
-* Mocks: update `lib/services/mock.ts` to use section `subject_key`; delete `subjectForSection` and `SUBJECTS`.
-* Questions query: make `getConceptsNeedingQuestions` accept verified-free subject keys from config, replacing `WHERE c.subject <> 'ga'`.
-* UI/actions: update `app/cards/page.tsx`, `app/generate/page.tsx`, `app/current-affairs/actions.ts`, `app/concepts/page.tsx`, `app/concepts/actions.ts`, and `components/graph/GraphCanvas.tsx` to use subject catalog and generation modes.
+* Services: update `lib/services/cardGeneration.ts`, `lib/services/generation.ts`, and `lib/services/currentAffairs.ts` to resolve a concept's `generation_mode` (load rows via `lib/db/queries/subjects.ts`, judge with `generationModeFor`) instead of `subject === 'ga'`/`!== 'ga'`.
+* Mocks: update `lib/services/mock.ts` to assemble from section `subject_key`; delete `subjectForSection` and `SUBJECTS`.
+* Questions query: rewrite `getConceptsNeedingQuestions` to JOIN `subject` and filter `WHERE s.generation_mode = 'verified_free'`, replacing `WHERE c.subject <> 'ga'`.
+* UI/actions: update `app/cards/page.tsx`, `app/generate/page.tsx`, `app/current-affairs/actions.ts`, `app/concepts/page.tsx`, `app/concepts/actions.ts`, and `components/graph/GraphCanvas.tsx` to read the `subject` table (catalog, labels, `position` ordering) and split by `generation_mode`; Zod validates `subject` against existing keys.
 ### Phase 3 — Prompts: inject exam context
 * Add an `ExamContext` prompt input containing exam name, subject labels, and per-mode generation guidance.
 * Update `lib/llm/prompts/*` builders to accept context instead of hardcoding `RRB NTPC` and the RRB subject taxonomy.
