@@ -6,6 +6,7 @@ import { z } from "zod";
 import { withTransaction, query } from "@/lib/db/client";
 import { upsertSubject } from "@/lib/db/queries/subjects";
 import { saveExamConfig } from "@/lib/db/queries/examConfig";
+import { seedOntology } from "@/lib/db/queries/ontology";
 import { findPreset } from "@/lib/exam/presets";
 
 export type SeedPresetState = { ok: boolean; message: string };
@@ -33,11 +34,14 @@ export async function seedExamPresetAction(input: unknown): Promise<SeedPresetSt
           negative_mark_ratio: preset.negative_mark_ratio,
           options_per_question: preset.options_per_question,
           qualifying_fraction: preset.qualifying_fraction,
+          ca_category_priors: preset.ca_category_priors,
           locale: "en",
           sections: [...preset.sections],
         },
         tx
       );
+      // Seed the concept ontology so a fresh instance is usable immediately.
+      await seedOntology(preset.ontology, tx);
     });
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "Setup failed." };
@@ -87,11 +91,14 @@ export async function switchExamAction(input: unknown): Promise<SwitchExamState>
           negative_mark_ratio: preset.negative_mark_ratio,
           options_per_question: preset.options_per_question,
           qualifying_fraction: preset.qualifying_fraction,
+          ca_category_priors: preset.ca_category_priors,
           locale: "en",
           sections: [...preset.sections],
         },
         tx
       );
+      // Seed the new exam's ontology (idempotent — existing concepts are kept).
+      await seedOntology(preset.ontology, tx);
     });
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "Exam switch failed." };

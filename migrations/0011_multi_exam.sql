@@ -52,6 +52,12 @@ ALTER TABLE exam_config
 ALTER TABLE exam_config
     ADD COLUMN IF NOT EXISTS qualifying_fraction REAL NOT NULL DEFAULT 0.45;
 
+-- ca_category_priors: per-exam current-affairs category → exam-probability priors
+-- (drives lib/caRanking.ts). Empty object falls back to a neutral 0.5 per item;
+-- onboarding seeds the active exam's priors from its preset.
+ALTER TABLE exam_config
+    ADD COLUMN IF NOT EXISTS ca_category_priors JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 -- sections[*].subject_key: explicit mapping replaces the keyword-sniffing
 -- subjectForSection. Backfill the existing row using the same keyword logic so
 -- nothing breaks before the application layer is updated.

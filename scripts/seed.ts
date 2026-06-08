@@ -1,5 +1,8 @@
-// Optional seed: one exam_config + a couple of concepts/cards so the review loop has data.
-// Usage: DATABASE_URL=... node --experimental-strip-types scripts/seed.ts
+// Optional RRB NTPC demo seed: one exam_config + a couple of concepts/cards so the
+// review loop has data. Subjects are created by migration 0011's bootstrap rows;
+// sections carry subject_key so mocks map. For a clean multi-exam setup, prefer the
+// onboarding flow (which seeds any preset). Usage:
+//   DATABASE_URL=... node --experimental-strip-types scripts/seed.ts
 import { Client } from "pg";
 
 async function main() {
@@ -8,16 +11,17 @@ async function main() {
   const client = new Client({ connectionString: url });
   await client.connect();
 
-  // RRB NTPC CBT-1 structure (A1).
+  // RRB NTPC CBT-1 structure (A1). Sections carry subject_key → subject.key.
   await client.query(
-    `INSERT INTO exam_config (exam_name, exam_date, negative_mark_ratio, locale, sections)
-     SELECT 'RRB NTPC', NULL, 0.3333, 'en', $1::jsonb
+    `INSERT INTO exam_config
+       (exam_name, exam_date, negative_mark_ratio, options_per_question, qualifying_fraction, locale, sections)
+     SELECT 'RRB NTPC', NULL, 0.3333, 4, 0.45, 'en', $1::jsonb
      WHERE NOT EXISTS (SELECT 1 FROM exam_config)`,
     [
       JSON.stringify([
-        { name: "Mathematics", questions: 30, marks: 30, time_s: 0 },
-        { name: "General Intelligence & Reasoning", questions: 30, marks: 30, time_s: 0 },
-        { name: "General Awareness", questions: 40, marks: 40, time_s: 0 },
+        { name: "Mathematics", questions: 30, marks: 30, time_s: 0, subject_key: "math" },
+        { name: "General Intelligence & Reasoning", questions: 30, marks: 30, time_s: 0, subject_key: "reasoning" },
+        { name: "General Awareness", questions: 40, marks: 40, time_s: 0, subject_key: "ga" },
       ]),
     ]
   );

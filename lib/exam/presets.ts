@@ -5,6 +5,12 @@
 
 import type { SubjectInput } from "@/lib/db/queries/subjects";
 import type { ExamSection } from "@/lib/db/types";
+import type { OntologyData } from "@/lib/db/queries/ontology";
+import {
+  RRB_NTPC_CONCEPTS,
+  RRB_NTPC_PREREQUISITES,
+  RRB_NTPC_CONTRASTS,
+} from "@/lib/exam/ontology/rrb-ntpc";
 
 // CA category priors: probability a news item of that category appears on the
 // exam, used by caRanking.ts (H4). Keyed to the category strings the scraper and
@@ -28,6 +34,8 @@ export interface ExamPreset {
   readonly qualifying_fraction: number;
   /** Per-category exam probability priors for current-affairs ranking. */
   readonly ca_category_priors: CaCategoryPriors;
+  /** Concept ontology (concepts + prerequisite/contrast edges) seeded at onboarding. */
+  readonly ontology: OntologyData;
 }
 
 // ─── RRB NTPC ────────────────────────────────────────────────────────────────
@@ -66,7 +74,12 @@ export const RRB_NTPC: ExamPreset = {
     obituaries:   0.50,
     books:        0.45,
   },
-} as const;
+  ontology: {
+    concepts: RRB_NTPC_CONCEPTS,
+    prerequisites: RRB_NTPC_PREREQUISITES,
+    contrasts: RRB_NTPC_CONTRASTS,
+  },
+};
 
 // Registry of all bundled presets. The onboarding picker shows these.
 export const EXAM_PRESETS: readonly ExamPreset[] = [RRB_NTPC];

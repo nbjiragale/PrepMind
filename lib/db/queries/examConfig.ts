@@ -14,6 +14,8 @@ export interface ExamConfigInput {
   options_per_question?: number;
   /** Qualifying band as a fraction of total marks; defaults to 0.45 when omitted. */
   qualifying_fraction?: number;
+  /** Current-affairs category priors; defaults to empty (neutral) when omitted. */
+  ca_category_priors?: Record<string, number>;
   locale: string;
   sections: ExamSection[];
 }
@@ -30,8 +32,8 @@ export async function saveExamConfig(
     await query(`DELETE FROM exam_config`, [], client);
     const row = await queryOne<ExamConfig>(
       `INSERT INTO exam_config
-         (exam_name, exam_date, negative_mark_ratio, options_per_question, qualifying_fraction, locale, sections)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+         (exam_name, exam_date, negative_mark_ratio, options_per_question, qualifying_fraction, ca_category_priors, locale, sections)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8::jsonb)
        RETURNING *`,
       [
         input.exam_name,
@@ -39,6 +41,7 @@ export async function saveExamConfig(
         input.negative_mark_ratio,
         input.options_per_question ?? 4,
         input.qualifying_fraction ?? 0.45,
+        JSON.stringify(input.ca_category_priors ?? {}),
         input.locale,
         JSON.stringify(input.sections),
       ],

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { isLlmConfigured } from "@/lib/llm/router";
 import { caExamProbability } from "@/lib/caRanking";
+import { requireExamConfig } from "@/lib/exam/guard";
 import { insertCaItem } from "@/lib/db/queries/currentAffairs";
 import { listConcepts } from "@/lib/db/queries/concepts";
 import { listSubjects } from "@/lib/db/queries/subjects";
@@ -32,12 +33,13 @@ export async function ingestCaAction(_prev: CaState, formData: FormData): Promis
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const d = parsed.data;
+  const config = await requireExamConfig();
   const item = await insertCaItem({
     ca_date: d.ca_date,
     source_url: d.source_url || null,
     category: d.category || null,
     raw_text: d.raw_text,
-    exam_probability: caExamProbability(d.category),
+    exam_probability: caExamProbability(d.category, config.ca_category_priors),
   });
   revalidatePath("/current-affairs");
   return { ok: true, message: `Ingested item #${item.id}.` };

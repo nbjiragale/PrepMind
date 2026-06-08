@@ -2,7 +2,7 @@ import { z } from "zod";
 import { completeGrounded, isGroundingConfigured } from "@/lib/llm/router";
 import { parseJson } from "@/lib/llm/json";
 import { buildCaFetchSystemPrompt, buildCaFetchUserPrompt } from "@/lib/llm/prompts/generate";
-import { loadExamContext } from "@/lib/llm/examContext";
+import { getExamConfig } from "@/lib/db/queries/examConfig";
 import { caExamProbability } from "@/lib/caRanking";
 import { insertCaItemDedup } from "@/lib/db/queries/currentAffairs";
 import { contentHash, normaliseCategory } from "@/lib/caScraperHash";
@@ -48,7 +48,9 @@ export async function ingestFromGemini(opts?: { date?: string }): Promise<CaScra
   const date = opts?.date ?? new Date().toISOString().slice(0, 10);
   const count = getMaxItems();
 
-  const { examName } = await loadExamContext();
+  const config = await getExamConfig();
+  const examName = config?.exam_name ?? "the exam";
+  const priors = config?.ca_category_priors ?? {};
   let result;
   try {
     result = await completeGrounded({
@@ -85,7 +87,7 @@ export async function ingestFromGemini(opts?: { date?: string }): Promise<CaScra
       source_url: result.citations[0]?.uri ?? null,
       raw_text,
       category,
-      exam_probability: caExamProbability(category),
+      exam_probability: caExamProbability(category, priors),
       content_hash: hash,
       citations: result.citations,
     });

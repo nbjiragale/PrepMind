@@ -80,6 +80,8 @@ export interface ExamConfig {
   options_per_question: number;
   /** Qualifying band as a fraction of total marks (e.g. 0.45). Drives readiness target. */
   qualifying_fraction: number;
+  /** Current-affairs category → exam-probability priors (drives caRanking). */
+  ca_category_priors: Record<string, number>;
   locale: string;
   sections: ExamSection[];
   created_at: string;

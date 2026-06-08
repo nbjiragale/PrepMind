@@ -3,6 +3,7 @@ import { getConceptResolveList } from "@/lib/db/queries/concepts";
 import { getTagMap } from "@/lib/db/queries/testbookTags";
 import { findQuestionByExternalRef, createImportedQuestion } from "@/lib/db/queries/questions";
 import { findMockByExternalRef, createImportedMockSession } from "@/lib/db/queries/mocks";
+import { getExamConfig } from "@/lib/db/queries/examConfig";
 import { applyAttemptTx } from "@/lib/services/attempt";
 import { buildTagResolver } from "@/lib/testbook/conceptResolver";
 import { adaptStudentTestResult } from "@/lib/testbook/resultAdapter";
@@ -59,8 +60,17 @@ export async function importTestbookMock(
     return alreadyImportedResult(existingId, mock);
   }
 
-  const [concepts, tagMap] = await Promise.all([getConceptResolveList(), getTagMap()]);
+  const [concepts, tagMap, examConfig] = await Promise.all([
+    getConceptResolveList(),
+    getTagMap(),
+    getExamConfig(),
+  ]);
   const resolve = buildTagResolver(concepts, tagMap);
+
+  // Full-test size is the sum of configured section question counts (e.g. 100 for
+  // RRB NTPC CBT-1), not a hardcoded literal. Fall back to 100 when unconfigured.
+  const fullTestTotal =
+    examConfig?.sections.reduce((sum, s) => sum + s.questions, 0) || 100;
 
   // Resolve every item up front so we can split mapped vs unmapped and report
   // before touching the DB.
@@ -76,7 +86,7 @@ export async function importTestbookMock(
   const mockSessionId = await withTransaction(async (tx) => {
     const sessionId = await createImportedMockSession(
       {
-        type: classifyMock(mock.totalQuestions),
+        type: classifyMock(mock.totalQuestions, fullTestTotal),
         external_ref: mock.externalRef,
         taken_at: mock.takenAt,
         total_questions: mock.totalQuestions,
@@ -153,9 +163,10 @@ function statusToCorrect(status: NormalizedItem["status"]): boolean | null {
   return null; // skipped — no knowledge signal
 }
 
-// NTPC CBT1 is ~100 questions; anything smaller is treated as a sectional.
-function classifyMock(totalQuestions: number): MockType {
-  return totalQuestions >= 100 ? "full_cbt1" : "sectional";
+// A test at/above the configured full-test size is a full mock; smaller imports
+// are treated as sectionals.
+function classifyMock(totalQuestions: number, fullTestTotal: number): MockType {
+  return totalQuestions >= fullTestTotal ? "full_cbt1" : "sectional";
 }
 
 interface Tally {
