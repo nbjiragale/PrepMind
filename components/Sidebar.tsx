@@ -12,6 +12,8 @@ import {
   LayoutDashboard,
   Upload,
   BookOpen,
+  Brain,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { NAV_SINGLES, NAV_GROUPS, isActiveHref } from "@/lib/nav";
@@ -55,25 +57,45 @@ export function Sidebar({ examName }: { examName?: string }) {
   const pathname = usePathname();
   const items = buildNavItems(pathname);
   return (
-    <nav className="bg-subtle h-full w-56 shrink-0 p-3 hidden md:flex md:flex-col gap-1">
-      <div className="px-3 py-3 text-h3 font-serif text-primary">{examName || "PrepMind"}</div>
-      {items.map(({ href, label, Icon, active }) => (
-        <Link
-          key={label}
-          href={href}
-          className={`relative flex items-center gap-3 rounded-md px-3 py-2 text-body transition-colors duration-150 ${
-            active
-              ? "bg-active text-primary font-medium"
-              : "text-secondary hover:bg-hover hover:text-primary"
-          }`}
-        >
-          {active && (
-            <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-accent" />
-          )}
-          {Icon && <Icon size={18} strokeWidth={1.5} />}
-          {label}
-        </Link>
-      ))}
+    <nav className="bg-surface border-r border-border h-full w-60 shrink-0 p-4 hidden md:flex md:flex-col gap-1">
+      {/* Brand */}
+      <div className="flex items-center gap-2.5 px-2 pb-4 pt-1">
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-accent text-on-accent shadow-accent">
+          <Brain size={20} strokeWidth={2} />
+        </span>
+        <span className="text-h3 font-extrabold tracking-tight text-primary">
+          {examName || "PrepMind"}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        {items.map(({ href, label, Icon, active }) => (
+          <Link
+            key={label}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center gap-3 rounded-full px-3.5 py-2.5 text-body transition-all duration-150 ${
+              active
+                ? "bg-accent text-on-accent font-semibold shadow-accent"
+                : "text-secondary hover:bg-hover hover:text-primary"
+            }`}
+          >
+            {Icon && <Icon size={18} strokeWidth={active ? 2.2 : 1.75} />}
+            {label}
+          </Link>
+        ))}
+      </div>
+
+      {/* Footer card — quiet nudge toward insights (mirrors the reference's
+          bottom card slot without inventing a paywall). */}
+      <Link
+        href="/dashboard"
+        className="mt-auto block overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-light p-4 text-on-accent shadow-accent transition-transform duration-150 hover:-translate-y-0.5"
+      >
+        <Sparkles size={20} strokeWidth={2} className="mb-2" />
+        <p className="text-small font-semibold leading-snug">Track your readiness</p>
+        <p className="text-caption font-medium text-on-accent/80">See where you stand →</p>
+      </Link>
     </nav>
   );
 }
@@ -93,18 +115,25 @@ const mobileItems: { href: string; label: string; Icon: LucideIcon }[] = [
 export function MobileTabBar() {
   const pathname = usePathname();
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-10 flex border-t border-border bg-subtle">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-10 flex border-t border-border bg-surface shadow-lg">
       {mobileItems.map(({ href, label, Icon }) => {
         const active = isActiveHref(pathname, href);
         return (
           <Link
             key={href}
             href={href}
-            className={`flex-1 flex flex-col items-center gap-1 py-2 text-caption ${
+            aria-current={active ? "page" : undefined}
+            className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-caption font-medium transition-colors ${
               active ? "text-accent-strong" : "text-secondary"
             }`}
           >
-            <Icon size={20} strokeWidth={1.5} />
+            <span
+              className={`grid h-8 w-12 place-items-center rounded-full transition-colors ${
+                active ? "bg-accent-subtle" : ""
+              }`}
+            >
+              <Icon size={20} strokeWidth={active ? 2.2 : 1.75} />
+            </span>
             {label}
           </Link>
         );

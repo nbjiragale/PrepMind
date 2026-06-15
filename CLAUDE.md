@@ -181,43 +181,52 @@ exam_config.locale               TEXT  -- 'en' default; schema is language-agnos
 
 ## 6. Design system
 
-The visual language mirrors **Claude.ai's web interface**: warm ivory canvas, one clay/coral accent, hairline borders, generous whitespace. Full token definitions live in `UIdesignspec.md`.
+The visual language is **soft, colorful, and minimal**: a light lavender canvas, one violet accent, white rounded cards with gentle purple-tinted shadows, and pastel category tiles. Friendly geometric sans (Plus Jakarta Sans), generous whitespace, rounded-everything. Full token definitions live in `UIdesignspec.md`.
 
 ### CSS variables (paste into `globals.css`)
 
 ```css
 :root {
-  --bg-canvas:      #FAF9F5;   /* app background */
-  --bg-subtle:      #F0EEE6;   /* sidebar, secondary panels */
-  --bg-surface:     #FFFFFF;   /* raised cards, inputs */
-  --bg-hover:       #F2F0E9;
-  --bg-active:      #EBE8DF;
-  --text-primary:   #262624;
-  --text-secondary: #5C5A54;
-  --text-muted:     #82807A;
+  --bg-canvas:      #F4F2FC;   /* app background — light lavender */
+  --bg-subtle:      #EFEDFA;   /* secondary panels */
+  --bg-surface:     #FFFFFF;   /* sidebar, raised cards, inputs */
+  --bg-hover:       #F3F1FC;
+  --bg-active:      #ECE9FB;
+  --bg-hero:        #2A2740;   /* deep indigo for dark feature surfaces */
+  --text-primary:   #211D38;
+  --text-secondary: #6B6781;
+  --text-muted:     #9C99AE;
   --text-on-accent: #FFFFFF;
-  --text-on-dark:   #FAF9F5;   /* text on dark surfaces (tooltips) */
-  --border-default: #E6E3DA;
-  --border-strong:  #D8D4C8;
-  --accent:         #D97757;   /* primary actions ONLY */
-  --accent-hover:   #C2603F;
-  --accent-subtle:  #F6E9E2;
-  --focus-ring:     rgba(217,119,87,0.35);
-  --success:        #5B8C6E;  --success-subtle: #E7EFE8;
-  --warning:        #C9912F;  --warning-subtle: #F6EDD9;
-  --danger:         #BF5340;  --danger-subtle:  #F4E4DF;
-  --mastery-0: #E6E3DA; --mastery-1: #E8C9BC; --mastery-2: #EBD2A6;
-  --mastery-3: #CFD9B8; --mastery-4: #A9C7B0;
-  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-xl: 24px; --radius-full: 9999px;
-  --shadow-xs: 0 1px 2px rgba(40,38,36,0.04);
-  --shadow-sm: 0 1px 3px rgba(40,38,36,0.06),0 1px 2px rgba(40,38,36,0.04);
-  --shadow-md: 0 4px 12px rgba(40,38,36,0.08);
-  --shadow-lg: 0 12px 28px rgba(40,38,36,0.12);  /* modals/menus only */
+  --text-on-dark:   #F4F2FC;   /* text on dark surfaces (tooltips) */
+  --border-default: #ECEAF6;
+  --border-strong:  #DCD8EE;
+  --accent:         #6C5CE7;   /* primary actions / active nav */
+  --accent-hover:   #5B4BD4;
+  --accent-strong:  #5546C7;   /* coral→violet text on light */
+  --accent-light:   #9D8DF1;   /* gradient partner */
+  --accent-subtle:  #EEEBFC;
+  --focus-ring:     rgba(108,92,231,0.35);
+  --success:        #1FA971;  --success-subtle: #E4F6EE;
+  --warning:        #B9831F;  --warning-subtle: #FBEFD2;
+  --danger:         #E15858;  --danger-subtle:  #FBE7E7;
+  --info:           #3E92E0;  --info-subtle:    #E2EFFB;
+  /* Pastel category tiles (dashboard stats): bg + matching ink */
+  --pastel-yellow: #FCE9C7; --pastel-yellow-ink: #8A5E0F;
+  --pastel-mint:   #DDF3E7; --pastel-mint-ink:   #1F8A5B;
+  --pastel-blue:   #DEECFB; --pastel-blue-ink:   #2E78C6;
+  --pastel-purple: #E7E2FB; --pastel-purple-ink: #5546C7;
+  --mastery-0: #ECEAF6; --mastery-1: #E0D9F8; --mastery-2: #FBE6C3;
+  --mastery-3: #CDEBD8; --mastery-4: #86CFA8;
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 18px; --radius-xl: 26px; --radius-2xl: 32px; --radius-full: 9999px;
+  --shadow-xs: 0 1px 2px rgba(76,67,120,0.05);
+  --shadow-sm: 0 2px 10px rgba(76,67,120,0.06);
+  --shadow-md: 0 10px 30px rgba(76,67,120,0.10);
+  --shadow-lg: 0 20px 48px rgba(76,67,120,0.16);  /* modals/menus only */
+  --shadow-accent: 0 10px 24px rgba(108,92,231,0.30);  /* primary buttons / active pills */
   --space-unit: 4px;  /* scale: 4 8 12 16 20 24 32 40 48 64 */
 
-  /* Fonts — Styrene A is proprietary; fallback stack keeps the clean grotesque character */
-  --font-sans:  "Styrene A", ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Inter", Arial, sans-serif;
-  --font-serif: "Tiempos Text", "Source Serif 4", "Georgia", serif;  /* large hero headings ONLY */
+  /* Fonts — Plus Jakarta Sans (loaded via next/font) drives the friendly voice */
+  --font-sans:  var(--font-jakarta), "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   --font-mono:  ui-monospace, "SF Mono", "JetBrains Mono", "Menlo", monospace;  /* timers + numeric stats */
 }
 ```
@@ -236,7 +245,7 @@ Default everything to `--font-sans`. Use `--font-serif` only for an optional lar
 | `small` | 13 | 1.5 | 400 | meta, secondary |
 | `caption` | 12 | 1.45 | 500 | labels/tags (often uppercase, +0.02em tracking) |
 
-- Weights **400 / 500 / 600 only** — never 700+.
+- Body/UI weights **400 / 500 / 600**; headings and big numbers may go **700 / 800** for warmth. Avoid 900.
 - Reading containers (tutor replies, explanations): cap width at **65–72ch**.
 
 ### Spacing & layout
@@ -245,7 +254,7 @@ Default everything to `--font-sans`. Use `--font-serif` only for an optional lar
 - **Card padding:** 20 compact / 24 default / 32 feature.
 - **Stack rhythm:** 8 tight, 16 grouped, 24–32 between sections.
 - **Content max-widths:** app shell ~1200px; reading/review column ~680–720px; tutor chat column ~720–760px.
-- **Layout shell:** left sidebar (nav) on `--bg-subtle` + main area on `--bg-canvas`. Sidebar collapsible; on mobile it becomes a bottom tab bar or drawer.
+- **Layout shell:** left sidebar (nav) on `--bg-surface` (white) with a hairline right border + main area on `--bg-canvas` (lavender). Sidebar collapsible; on mobile it becomes a bottom tab bar or drawer.
 
 ### Accessibility & contrast (don't skip)
 - `--accent` on white is ~3.4:1 — fine for fills, icons, and large/bold text, **NOT for small body text.** For coral text on light, use ≥16px medium, else use `--accent-strong` or `--text-primary`.
@@ -260,15 +269,18 @@ Line icons, ~1.5px stroke, rounded joins (**lucide-react** fits). Default icon c
 
 ```ts
 colors: {
-  canvas: "#FAF9F5", subtle: "#F0EEE6", surface: "#FFFFFF",
-  hover: "#F2F0E9", active: "#EBE8DF",
-  primary: "#262624", secondary: "#5C5A54", muted: "#82807A",
-  border: "#E6E3DA", "border-strong": "#D8D4C8",
-  accent: { DEFAULT:"#D97757", hover:"#C2603F", strong:"#BF5D3B", subtle:"#F6E9E2", border:"#E8C4B4" },
-  success: { DEFAULT:"#5B8C6E", subtle:"#E7EFE8" },
-  warning: { DEFAULT:"#C9912F", subtle:"#F6EDD9" },
-  danger:  { DEFAULT:"#BF5340", subtle:"#F4E4DF" },
-  mastery: { 0:"#E6E3DA", 1:"#E8C9BC", 2:"#EBD2A6", 3:"#CFD9B8", 4:"#A9C7B0" },
+  canvas: "#F4F2FC", subtle: "#EFEDFA", surface: "#FFFFFF",
+  hover: "#F3F1FC", active: "#ECE9FB", hero: "#2A2740",
+  primary: "#211D38", secondary: "#6B6781", muted: "#9C99AE",
+  border: "#ECEAF6", "border-strong": "#DCD8EE",
+  accent: { DEFAULT:"#6C5CE7", hover:"#5B4BD4", strong:"#5546C7", light:"#9D8DF1", subtle:"#EEEBFC", border:"#D7D0F7" },
+  success: { DEFAULT:"#1FA971", subtle:"#E4F6EE" },
+  warning: { DEFAULT:"#B9831F", subtle:"#FBEFD2" },
+  danger:  { DEFAULT:"#E15858", subtle:"#FBE7E7" },
+  info:    { DEFAULT:"#3E92E0", subtle:"#E2EFFB" },
+  pastel:  { yellow:"#FCE9C7", "yellow-ink":"#8A5E0F", mint:"#DDF3E7", "mint-ink":"#1F8A5B",
+             blue:"#DEECFB", "blue-ink":"#2E78C6", purple:"#E7E2FB", "purple-ink":"#5546C7" },
+  mastery: { 0:"#ECEAF6", 1:"#E0D9F8", 2:"#FBE6C3", 3:"#CDEBD8", 4:"#86CFA8" },
 }
 ```
 
@@ -276,39 +288,40 @@ Also extend `fontFamily` (sans/serif/mono), `fontSize` (the type-scale tokens ab
 
 ### Design principles (enforce in every component)
 
-- **Warm ivory canvas** (`--bg-canvas`). Never `#FFFFFF` backgrounds; white is for raised cards.
-- **One accent** (`--accent` coral/clay) for primary actions and focus rings only. Nothing else is coral.
-- **Hairlines over shadows.** Use `border border-default` to separate; `shadow-*` only for floating elements.
+- **Soft lavender canvas** (`--bg-canvas`). Never pure-white page backgrounds; white is for the sidebar and raised cards.
+- **One violet accent** (`--accent`) for primary actions, active nav, and focus rings. Pastel tile hues are decorative only.
+- **Soft over hard.** Rounded corners (cards `rounded-xl`+), gentle purple-tinted shadows; hairline `border-default` to separate.
 - **Generous whitespace.** Card padding: 20 (compact) / 24 (default) / 32 (feature).
-- **Quiet typography.** Weights 400/500/600 only. No 700+. Warm near-black `--text-primary`, not `#000`.
-- **Gentle motion.** `transition-colors duration-150`, `duration-200` for transforms. No bounce.
+- **Friendly typography.** Plus Jakarta Sans. Headings 700/800 for warmth; body 400/500/600. Deep indigo `--text-primary`, not `#000`.
+- **Gentle motion.** `transition-colors duration-150`, `duration-200` for transforms; small hover lifts, no bounce.
 - **Light mode only.** No dark theme.
 
 ### Component quick-reference
 
 ```
-Button primary:    bg-accent text-on-accent rounded-md px-5 py-2.5 font-medium h-[40px]
-Button secondary:  bg-surface text-primary border border-strong rounded-md px-5 py-2.5
-Button ghost:      text-secondary rounded-md px-3 py-2 hover:bg-hover
-Card:              bg-surface border border-default rounded-lg p-6 shadow-xs
-Input:             bg-surface border border-strong rounded-md px-3.5 py-2.5 focus:border-accent ring-focus
-Badge (success):   bg-success-subtle text-success rounded-full px-2.5 py-0.5 caption
-Badge (danger):    bg-danger-subtle text-danger rounded-full px-2.5 py-0.5 caption
-Nav item active:   bg-active text-primary font-medium + 2-3px accent left border (NOT full coral fill)
-Tab active:        text-primary + 2px accent underline (underline style, not boxed)
-Modal:             bg-surface rounded-xl p-6 shadow-lg max-w-md; scrim bg-[#262624]/30 backdrop-blur-[2px]
+Button primary:    bg-accent text-on-accent rounded-full px-5 py-2.5 font-semibold shadow-accent hover:-translate-y-0.5
+Button secondary:  bg-surface text-primary border border-strong rounded-full px-5 py-2.5
+Button ghost:      text-secondary rounded-full px-3 py-2 hover:bg-hover
+Card:              bg-surface border border-default rounded-xl p-6 shadow-sm
+Input:             bg-surface border border-strong rounded-lg px-3.5 py-2.5 focus:border-accent ring-focus
+Badge (success):   bg-success-subtle text-success rounded-full px-2.5 py-1 caption font-semibold
+Badge (danger):    bg-danger-subtle text-danger rounded-full px-2.5 py-1 caption font-semibold
+Stat tile:         full pastel bg (bg-pastel-* ) rounded-xl p-5 + ink-colored number + white/70 icon chip
+Nav item active:   bg-accent text-on-accent font-semibold rounded-full shadow-accent (full violet pill)
+Tab active:        bg-accent text-on-accent rounded-full shadow-accent (pill, not underline)
+Modal:             bg-surface rounded-xl p-6 shadow-lg max-w-md; scrim bg-hero/30 backdrop-blur-[2px]
 Toast:             bg-surface border border-default rounded-lg shadow-md p-4 + semantic dot; auto-dismiss
-Tooltip:           bg-[#262624] text-on-dark caption rounded-md px-2 py-1 shadow-md (small, dark, quiet)
+Tooltip:           bg-hero text-on-dark caption rounded-md px-2 py-1 shadow-md (small, dark, quiet)
 Progress:          track bg-active rounded-full h-2, fill bg-accent (use mastery color for mastery bars)
 Destructive btn:   secondary style but text-danger border-danger/40, hover bg-danger-subtle (rare)
 ```
 
 ### Do / Don't
 - ❌ Pure white page backgrounds or `#000` text.
-- ❌ Coral on large areas, multiple competing accents, or bright saturated semantic colors.
+- ❌ Violet on large reading areas, multiple competing accents, or bright saturated semantic colors. (Pastel tiles are the one decorative exception.)
 - ❌ Heavy drop shadows, thick borders, boxed/cluttered layouts.
-- ❌ Bold 700+ weights, cramped spacing, bouncy/parallax motion.
-- ❌ Dark mode, or full-coral active nav items.
+- ❌ Weight 900, cramped spacing, bouncy/parallax motion.
+- ❌ Dark mode.
 
 ---
 
