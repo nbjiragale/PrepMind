@@ -5,17 +5,20 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { rateCard } from "@/app/review/actions";
+import { useT } from "@/components/i18n/LocaleProvider";
+import type { UiKey } from "@/lib/i18n";
 import type { DueCard, Rating } from "@/lib/db/types";
 
 // Rating buttons stay neutral-bodied; only the left dot carries semantic tint (UIdesignspec §8).
-const RATINGS: { rating: Rating; label: string; dot: string }[] = [
-  { rating: 1, label: "Again", dot: "bg-danger" },
-  { rating: 2, label: "Hard", dot: "bg-warning" },
-  { rating: 3, label: "Good", dot: "bg-success" },
-  { rating: 4, label: "Easy", dot: "bg-success" },
+const RATINGS: { rating: Rating; labelKey: UiKey; dot: string }[] = [
+  { rating: 1, labelKey: "review.again", dot: "bg-danger" },
+  { rating: 2, labelKey: "review.hard", dot: "bg-warning" },
+  { rating: 3, labelKey: "review.good", dot: "bg-success" },
+  { rating: 4, labelKey: "review.easy", dot: "bg-success" },
 ];
 
 export function ReviewSession({ initialQueue }: { initialQueue: DueCard[] }) {
+  const { t } = useT();
   const [queue] = useState(initialQueue);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -52,11 +55,14 @@ export function ReviewSession({ initialQueue }: { initialQueue: DueCard[] }) {
   if (total === 0 || index >= total) {
     return (
       <div className="mx-auto max-w-column px-6 py-16 text-center">
-        <h1 className="text-h2 mb-2">All clear</h1>
+        <h1 className="text-h2 mb-2">{t("review.allClear")}</h1>
         <p className="text-secondary text-body-lg">
           {total === 0
-            ? "Nothing is due right now. Add cards or check back later."
-            : `You reviewed ${done} ${done === 1 ? "card" : "cards"} today. Nice work.`}
+            ? t("review.nothingDue")
+            : t("review.reviewedToday", {
+                count: done,
+                cards: done === 1 ? t("review.cardSingular") : t("review.cardPlural"),
+              })}
         </p>
       </div>
     );
@@ -74,7 +80,7 @@ export function ReviewSession({ initialQueue }: { initialQueue: DueCard[] }) {
             style={{ width: `${progress}%` }}
           />
         </div>
-        <p className="mt-2 text-small text-muted">{remaining} remaining today</p>
+        <p className="mt-2 text-small text-muted">{t("review.remainingToday", { count: remaining })}</p>
       </div>
 
       <div className="mb-4">
@@ -94,11 +100,11 @@ export function ReviewSession({ initialQueue }: { initialQueue: DueCard[] }) {
       <div className="mt-8">
         {!revealed ? (
           <Button onClick={reveal} className="w-full">
-            Reveal answer
+            {t("review.reveal")}
           </Button>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {RATINGS.map(({ rating, label, dot }) => (
+            {RATINGS.map(({ rating, labelKey, dot }) => (
               <Button
                 key={rating}
                 variant="secondary"
@@ -107,7 +113,7 @@ export function ReviewSession({ initialQueue }: { initialQueue: DueCard[] }) {
                 className="gap-2"
               >
                 <span className={`h-2 w-2 rounded-full ${dot}`} />
-                {label}
+                {t(labelKey)}
               </Button>
             ))}
           </div>

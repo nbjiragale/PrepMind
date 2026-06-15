@@ -12,6 +12,7 @@ import { genTokens } from "@/lib/config";
 import { getConcept } from "@/lib/db/queries/concepts";
 import { getGenerationMode } from "@/lib/db/queries/subjects";
 import { loadExamContext } from "@/lib/llm/examContext";
+import { withLanguage } from "@/lib/llm/language";
 import { createCard } from "@/lib/db/queries/cards";
 
 // On-demand flashcard generation for a concept. Mirrors the question generator:
@@ -41,9 +42,9 @@ export async function generateFactCards(input: {
     throw new Error("Grounded concepts need a source passage — use grounded card generation.");
   }
 
-  const { examName } = await loadExamContext();
+  const { examName, language } = await loadExamContext();
   const raw = await complete({
-    system: buildFactCardSystemPrompt(examName),
+    system: withLanguage(buildFactCardSystemPrompt(examName), language),
     messages: [
       {
         role: "user",
@@ -81,9 +82,9 @@ export async function generateGroundedCards(input: {
     throw new Error("Grounded card generation is only for grounded subjects.");
   }
 
-  const { examName } = await loadExamContext();
+  const { examName, language } = await loadExamContext();
   const raw = await complete({
-    system: buildPassageCardSystemPrompt(examName),
+    system: withLanguage(buildPassageCardSystemPrompt(examName), language),
     messages: [
       {
         role: "user",

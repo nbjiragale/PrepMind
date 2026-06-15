@@ -59,8 +59,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-jakarta)", '"Inter"', "ui-sans-serif", "system-ui", "-apple-system", '"Segoe UI"', "Arial", "sans-serif"],
-        serif: ["var(--font-jakarta)", '"Tiempos Text"', '"Source Serif 4"', "Georgia", "serif"],
+        sans: ["var(--font-jakarta)", "var(--font-kannada)", '"Inter"', "ui-sans-serif", "system-ui", "-apple-system", '"Segoe UI"', "Arial", "sans-serif"],
+        serif: ["var(--font-jakarta)", "var(--font-kannada)", '"Tiempos Text"', '"Source Serif 4"', "Georgia", "serif"],
         mono: ["ui-monospace", '"SF Mono"', '"JetBrains Mono"', "Menlo", "monospace"],
       },
       fontSize: {

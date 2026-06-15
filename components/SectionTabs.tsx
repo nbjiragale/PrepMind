@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { groupForPath, isActiveHref } from "@/lib/nav";
+import { useT } from "@/components/i18n/LocaleProvider";
 
 // Section tab bar for clustered screens (Insights, Study aids, Content,
 // Library). Rendered once in the layout; reads the route to pick the active
@@ -10,12 +11,13 @@ import { groupForPath, isActiveHref } from "@/lib/nav";
 // UIdesignspec ("Tab active: text-primary + 2px accent underline, not boxed").
 export function SectionTabs() {
   const pathname = usePathname();
+  const { tNav, tGroup } = useT();
   const group = groupForPath(pathname);
   if (!group) return null;
 
   return (
     <div className="shrink-0 bg-canvas/80 px-6 pt-4 md:px-8 backdrop-blur-sm">
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={group.label}>
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={tGroup(group.key, group.label)}>
         {group.tabs.map((t) => {
           const active = isActiveHref(pathname, t.href);
           return (
@@ -29,7 +31,7 @@ export function SectionTabs() {
                   : "text-secondary hover:bg-hover hover:text-primary"
               }`}
             >
-              {t.label}
+              {tNav(t.href, t.label)}
             </Link>
           );
         })}

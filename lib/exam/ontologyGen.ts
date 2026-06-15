@@ -8,6 +8,8 @@ import {
 } from "@/lib/llm/prompts/ontology";
 import { listSubjects } from "@/lib/db/queries/subjects";
 import { getExamConfig } from "@/lib/db/queries/examConfig";
+import { withLanguage } from "@/lib/llm/language";
+import { coerceLocale, languageName } from "@/lib/i18n/config";
 import { validateOntology, type RawOntology } from "@/lib/exam/ontologyValidate";
 import type { OntologyData } from "@/lib/db/queries/ontology";
 
@@ -57,7 +59,7 @@ export async function generateOntology(input?: {
   );
 
   const raw = await complete({
-    system: buildOntologySystemPrompt(examName),
+    system: withLanguage(buildOntologySystemPrompt(examName), languageName(coerceLocale(config?.locale))),
     messages: [
       {
         role: "user",

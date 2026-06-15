@@ -19,6 +19,7 @@ import {
 } from "@/lib/db/queries/interactions";
 import { buildTutorCachedPrefix, buildTutorMemoryBlock } from "@/lib/llm/prompts/tutor";
 import { loadExamContext } from "@/lib/llm/examContext";
+import { withLanguage } from "@/lib/llm/language";
 
 // Read path (architecture §8): assemble the relevant memory slice for one
 // concept, then a single LLM call. The model appears to remember the learner;
@@ -58,7 +59,7 @@ export async function askTutor(input: {
   // Cache the stable prefix (persona + nightly profile); keep the per-concept
   // memory slice uncached as it varies every call (§8 / Hard Rule §4).
   const system = [
-    { text: buildTutorCachedPrefix(profile?.summary_text ?? null, examCtx.examName), cache: true },
+    { text: withLanguage(buildTutorCachedPrefix(profile?.summary_text ?? null, examCtx.examName), examCtx.language), cache: true },
     { text: `[MEMORY]\n${memory}`, cache: false },
   ];
 
