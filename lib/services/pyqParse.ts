@@ -5,20 +5,25 @@ import { z } from "zod";
 
 // One row of the import batch. `concept` accepts either a numeric id or a
 // concept name (case-insensitive), so a paste can reference the seeded ontology
-// by name without the user hunting for ids.
-const rowSchema = z
-  .object({
-    concept: z.union([z.number().int().positive(), z.string().min(1)]),
-    stem: z.string().trim().min(1, "stem is empty"),
-    options: z.array(z.string().trim().min(1, "option is empty")).length(4, "need exactly 4 options"),
-    correct_option: z.coerce.number().int().min(0).max(3),
-    explanation: z.string().trim().optional().nullable(),
-    exam_year: z.coerce.number().int().min(1990).max(2100).optional().nullable(),
-    exam_stage: z.enum(["cbt1", "cbt2"]).optional().nullable(),
-  })
-  .strict();
+// by name without the user hunting for ids. The option count is exam-driven
+// (exam_config.options_per_question), so the schema is built per import.
+function buildRowSchema(optionsPerQuestion: number) {
+  return z
+    .object({
+      concept: z.union([z.number().int().positive(), z.string().min(1)]),
+      stem: z.string().trim().min(1, "stem is empty"),
+      options: z
+        .array(z.string().trim().min(1, "option is empty"))
+        .length(optionsPerQuestion, `need exactly ${optionsPerQuestion} options`),
+      correct_option: z.coerce.number().int().min(0).max(optionsPerQuestion - 1),
+      explanation: z.string().trim().optional().nullable(),
+      exam_year: z.coerce.number().int().min(1990).max(2100).optional().nullable(),
+      exam_stage: z.enum(["cbt1", "cbt2"]).optional().nullable(),
+    })
+    .strict();
+}
 
-export type PyqImportRow = z.infer<typeof rowSchema>;
+export type PyqImportRow = z.infer<ReturnType<typeof buildRowSchema>>;
 
 export interface RowError {
   index: number; // 0-based position in the submitted batch; -1 for envelope errors
@@ -28,7 +33,11 @@ export interface RowError {
 // Pure parse step (no DB) — keeps validation unit-testable. Accepts a JSON
 // array, or an object with a top-level `questions` array. Returns either the
 // typed rows or per-row errors; a malformed envelope is a single error at -1.
-export function parsePyqBatch(raw: string): { rows: PyqImportRow[]; errors: RowError[] } {
+export function parsePyqBatch(
+  raw: string,
+  optionsPerQuestion = 4
+): { rows: PyqImportRow[]; errors: RowError[] } {
+  const rowSchema = buildRowSchema(optionsPerQuestion);
   let json: unknown;
   try {
     json = JSON.parse(raw);

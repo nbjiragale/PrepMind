@@ -8,7 +8,7 @@ import {
 
 // Shared field styling — the single source for input/textarea/select looks.
 const fieldBase =
-  "w-full bg-surface border border-border-strong rounded-md px-3.5 py-2.5 text-body text-primary placeholder:text-muted focus:border-accent focus:outline-none focus-visible:ring-4 focus-visible:ring-focus";
+  "w-full bg-surface border border-border-strong rounded-lg px-3.5 py-2.5 text-body text-primary placeholder:text-muted transition-colors focus:border-accent focus:outline-none focus-visible:ring-4 focus-visible:ring-focus";
 
 export function Label({ className = "", ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
   return (

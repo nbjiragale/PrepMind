@@ -1,10 +1,19 @@
 import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Sidebar, MobileTabBar } from "@/components/Sidebar";
 import { SectionTabs } from "@/components/SectionTabs";
 import { getExamConfig } from "@/lib/db/queries/examConfig";
 
 const BRAND = "PrepMind";
+
+// Friendly geometric sans — the typographic voice of the UI.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-jakarta",
+});
 
 // Branding reads run during the build-time prerender of /_not-found too, where no
 // DATABASE_URL is set — degrade to the brand name instead of failing the build.
@@ -29,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#FAF9F5",
+  themeColor: "#F4F2FC",
   width: "device-width",
   initialScale: 1,
 };
@@ -37,7 +46,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const examName = await activeExamName();
   return (
-    <html lang="en">
+    <html lang="en" className={jakarta.variable}>
       <body className="bg-canvas text-primary">
         <div className="flex h-dvh">
           <Sidebar examName={examName} />

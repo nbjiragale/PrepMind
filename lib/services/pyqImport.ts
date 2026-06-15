@@ -2,6 +2,7 @@ import { withTransaction } from "@/lib/db/client";
 import { createQuestion, findDuplicateQuestion } from "@/lib/db/queries/questions";
 import { getConceptIdMap } from "@/lib/db/queries/concepts";
 import { parsePyqBatch, type RowError } from "@/lib/services/pyqParse";
+import { requireExamConfig } from "@/lib/exam/guard";
 
 // Bulk PYQ import (A2). PYQs are real past-paper questions — ground truth, not
 // model output — so they are stored verified=true and bypass the LLM verify
@@ -19,7 +20,8 @@ export interface PyqImportResult {
 // never sinks the batch — it's reported and the rest still import. The inserts
 // run in a single transaction so a mid-batch failure leaves no partial state.
 export async function importPyqBatch(raw: string): Promise<PyqImportResult> {
-  const { rows, errors } = parsePyqBatch(raw);
+  const { options_per_question } = await requireExamConfig();
+  const { rows, errors } = parsePyqBatch(raw, options_per_question);
   const total = rows.length + errors.length;
 
   if (rows.length === 0) {

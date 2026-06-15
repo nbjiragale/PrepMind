@@ -2,56 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens — single source of truth. See CLAUDE.md §6 / UIdesignspec.md §3. */
+/* Design tokens — single source of truth. See CLAUDE.md §6 / UIdesignspec.md §3.
+   Aesthetic: soft lavender canvas, one violet accent, white rounded cards with
+   gentle purple-tinted shadows, pastel category tiles. Colorful but minimal. */
 :root {
-  --bg-canvas: #faf9f5;
-  --bg-subtle: #f0eee6;
+  --bg-canvas: #f4f2fc;
+  --bg-subtle: #efedfa;
   --bg-surface: #ffffff;
-  --bg-hover: #f2f0e9;
-  --bg-active: #ebe8df;
+  --bg-hover: #f3f1fc;
+  --bg-active: #ece9fb;
+  --bg-hero: #2a2740;
 
-  --text-primary: #262624;
-  --text-secondary: #5c5a54;
-  --text-muted: #82807a;
+  --text-primary: #211d38;
+  --text-secondary: #6b6781;
+  --text-muted: #9c99ae;
   --text-on-accent: #ffffff;
-  --text-on-dark: #faf9f5;
+  --text-on-dark: #f4f2fc;
 
-  --border-default: #e6e3da;
-  --border-strong: #d8d4c8;
-  --border-subtle: #efede4;
+  --border-default: #eceaf6;
+  --border-strong: #dcd8ee;
+  --border-subtle: #f2f0fa;
 
-  --accent: #d97757;
-  --accent-hover: #c2603f;
-  --accent-strong: #bf5d3b;
-  --accent-subtle: #f6e9e2;
-  --accent-border: #e8c4b4;
-  --focus-ring: rgba(217, 119, 87, 0.35);
+  --accent: #6c5ce7;
+  --accent-hover: #5b4bd4;
+  --accent-strong: #5546c7;
+  --accent-light: #9d8df1;
+  --accent-subtle: #eeebfc;
+  --accent-border: #d7d0f7;
+  --focus-ring: rgba(108, 92, 231, 0.35);
 
-  --success: #5b8c6e;
-  --success-subtle: #e7efe8;
-  --warning: #c9912f;
-  --warning-subtle: #f6edd9;
-  --danger: #bf5340;
-  --danger-subtle: #f4e4df;
-  --info: #5a7a99;
-  --info-subtle: #e5ecf1;
+  --success: #1fa971;
+  --success-subtle: #e4f6ee;
+  --warning: #b9831f;
+  --warning-subtle: #fbefd2;
+  --danger: #e15858;
+  --danger-subtle: #fbe7e7;
+  --info: #3e92e0;
+  --info-subtle: #e2effb;
 
-  --mastery-0: #e6e3da;
-  --mastery-1: #e8c9bc;
-  --mastery-2: #ebd2a6;
-  --mastery-3: #cfd9b8;
-  --mastery-4: #a9c7b0;
+  /* Pastel category tiles (dashboard stats, accents). bg + matching ink. */
+  --pastel-yellow: #fce9c7;
+  --pastel-yellow-ink: #8a5e0f;
+  --pastel-mint: #ddf3e7;
+  --pastel-mint-ink: #1f8a5b;
+  --pastel-blue: #deecfb;
+  --pastel-blue-ink: #2e78c6;
+  --pastel-purple: #e7e2fb;
+  --pastel-purple-ink: #5546c7;
+  --pastel-pink: #fbe2ee;
+  --pastel-pink-ink: #c13b7a;
+  --pastel-peach: #fce4da;
+  --pastel-peach-ink: #c75e3b;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --mastery-0: #eceaf6;
+  --mastery-1: #e0d9f8;
+  --mastery-2: #fbe6c3;
+  --mastery-3: #cdebd8;
+  --mastery-4: #86cfa8;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 26px;
+  --radius-2xl: 32px;
   --radius-full: 9999px;
 
-  --shadow-xs: 0 1px 2px rgba(40, 38, 36, 0.04);
-  --shadow-sm: 0 1px 3px rgba(40, 38, 36, 0.06), 0 1px 2px rgba(40, 38, 36, 0.04);
-  --shadow-md: 0 4px 12px rgba(40, 38, 36, 0.08);
-  --shadow-lg: 0 12px 28px rgba(40, 38, 36, 0.12);
+  --shadow-xs: 0 1px 2px rgba(76, 67, 120, 0.05);
+  --shadow-sm: 0 2px 10px rgba(76, 67, 120, 0.06);
+  --shadow-md: 0 10px 30px rgba(76, 67, 120, 0.1);
+  --shadow-lg: 0 20px 48px rgba(76, 67, 120, 0.16);
+  --shadow-accent: 0 10px 24px rgba(108, 92, 231, 0.3);
 }
 
 html,
@@ -60,6 +80,22 @@ body {
   color: var(--text-primary);
   font-family: theme("fontFamily.sans");
   -webkit-font-smoothing: antialiased;
+}
+
+/* Quiet, soft scrollbars that fit the palette (WebKit). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 /* Gentle motion only; respect reduced-motion. */

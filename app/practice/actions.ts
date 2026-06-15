@@ -4,10 +4,10 @@ import { z } from "zod";
 import { getQuestionForGrading, flagQuestion } from "@/lib/db/queries/questions";
 import { recordAttempt } from "@/lib/services/attempt";
 import { tryDiagnoseAttempt } from "@/lib/services/diagnosis";
+import { requireExamConfig } from "@/lib/exam/guard";
 
-const schema = z.object({
+const baseSchema = z.object({
   questionId: z.number().int().positive(),
-  selectedOption: z.number().int().min(0).max(3),
   confidence: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
   timeMs: z.number().int().nonnegative().nullable(),
 });
@@ -27,6 +27,12 @@ export async function submitPracticeAttempt(input: {
   confidence: number;
   timeMs: number | null;
 }): Promise<AttemptResult> {
+  // Option count is exam-driven (not hardcoded to 4): bound selectedOption by
+  // the configured options_per_question, matching the mock-grading path.
+  const { options_per_question } = await requireExamConfig();
+  const schema = baseSchema.extend({
+    selectedOption: z.number().int().min(0).max(options_per_question - 1),
+  });
   const { questionId, selectedOption, confidence, timeMs } = schema.parse(input);
 
   const question = await getQuestionForGrading(questionId);

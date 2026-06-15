@@ -14,8 +14,8 @@ export function SectionTabs() {
   if (!group) return null;
 
   return (
-    <div className="shrink-0 border-b border-border bg-canvas">
-      <div className="flex gap-1 px-6 md:px-8" role="tablist" aria-label={group.label}>
+    <div className="shrink-0 bg-canvas/80 px-6 pt-4 md:px-8 backdrop-blur-sm">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={group.label}>
         {group.tabs.map((t) => {
           const active = isActiveHref(pathname, t.href);
           return (
@@ -23,12 +23,13 @@ export function SectionTabs() {
               key={t.href}
               href={t.href}
               aria-current={active ? "page" : undefined}
-              className={`relative px-3 py-3 text-body transition-colors duration-150 ${
-                active ? "text-primary font-medium" : "text-secondary hover:text-primary"
+              className={`rounded-full px-4 py-2 text-small font-semibold transition-all duration-150 ${
+                active
+                  ? "bg-accent text-on-accent shadow-accent"
+                  : "text-secondary hover:bg-hover hover:text-primary"
               }`}
             >
               {t.label}
-              {active && <span className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-accent" />}
             </Link>
           );
         })}

@@ -15,7 +15,6 @@ types.setTypeParser(types.builtins.INT8, (val) => Number(val));
 
 // Single owned Postgres (Hard Rule §5). Connection via DATABASE_URL.
 declare global {
-  // eslint-disable-next-line no-var
   var __pgPool: Pool | undefined;
 }
 
