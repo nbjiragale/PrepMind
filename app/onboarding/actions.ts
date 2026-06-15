@@ -11,7 +11,10 @@ import { findPreset } from "@/lib/exam/presets";
 
 export type SeedPresetState = { ok: boolean; message: string };
 
-const seedSchema = z.object({ preset_slug: z.string().trim().min(1) });
+const seedSchema = z.object({
+  preset_slug: z.string().trim().min(1),
+  locale: z.enum(["en", "kn"]).default("en"),
+});
 
 // First-run: seed subjects + exam_config from the chosen preset then go to /review.
 // Safe to call on a fresh instance (no existing data to break).
@@ -35,7 +38,7 @@ export async function seedExamPresetAction(input: unknown): Promise<SeedPresetSt
           options_per_question: preset.options_per_question,
           qualifying_fraction: preset.qualifying_fraction,
           ca_category_priors: preset.ca_category_priors,
-          locale: "en",
+          locale: parsed.data.locale,
           sections: [...preset.sections],
         },
         tx

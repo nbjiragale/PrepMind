@@ -4,6 +4,7 @@ import { parseJson } from "@/lib/llm/json";
 import { tryEmbed } from "@/lib/llm/embed";
 import { buildFeynmanSystemPrompt, buildFeynmanUserPrompt } from "@/lib/llm/prompts/feynman";
 import { loadExamContext } from "@/lib/llm/examContext";
+import { withLanguage } from "@/lib/llm/language";
 import { getConcept } from "@/lib/db/queries/concepts";
 import { insertInteraction, listInteractionsByConcept } from "@/lib/db/queries/interactions";
 import type { Interaction } from "@/lib/db/types";
@@ -29,10 +30,10 @@ export async function gradeFeynman(input: {
   if (!isLlmConfigured()) throw new Error("LLM not configured — Feynman grading needs it.");
   const concept = await getConcept(input.conceptId);
   if (!concept) throw new Error(`Concept ${input.conceptId} not found`);
-  const { examName } = await loadExamContext();
+  const { examName, language } = await loadExamContext();
 
   const raw = await complete({
-    system: buildFeynmanSystemPrompt(examName),
+    system: withLanguage(buildFeynmanSystemPrompt(examName), language),
     messages: [
       {
         role: "user",

@@ -22,6 +22,8 @@ import { numEnv } from "@/lib/env";
 import { getConcept } from "@/lib/db/queries/concepts";
 import { getGenerationMode } from "@/lib/db/queries/subjects";
 import { getExamConfig } from "@/lib/db/queries/examConfig";
+import { withLanguage, type Language } from "@/lib/llm/language";
+import { coerceLocale, languageName } from "@/lib/i18n/config";
 import {
   createGeneratedQuestion,
   getQuestionDetail,
@@ -47,11 +49,12 @@ const makeCandidatesSchema = (optionCount: number) =>
 
 // Exam name + option count for generation prompts and the verify gate. One read
 // of the singleton exam_config; neutral fallbacks for non-interactive callers.
-async function examGenContext(): Promise<{ examName: string; optionCount: number }> {
+async function examGenContext(): Promise<{ examName: string; optionCount: number; language: Language }> {
   const config = await getExamConfig();
   return {
     examName: config?.exam_name ?? "the exam",
     optionCount: config?.options_per_question ?? 4,
+    language: languageName(coerceLocale(config?.locale)),
   };
 }
 
@@ -79,9 +82,9 @@ export async function generateMathQuestions(input: {
     throw new Error("Grounded concepts must use grounded generation, not free generation.");
   }
 
-  const { examName, optionCount } = await examGenContext();
+  const { examName, optionCount, language } = await examGenContext();
   const raw = await complete({
-    system: buildMathSystemPrompt(examName, optionCount),
+    system: withLanguage(buildMathSystemPrompt(examName, optionCount), language),
     messages: [
       {
         role: "user",
@@ -126,9 +129,9 @@ export async function generateGaQuestions(input: {
     throw new Error("Grounded generation is only for grounded subjects.");
   }
 
-  const { examName, optionCount } = await examGenContext();
+  const { examName, optionCount, language } = await examGenContext();
   const raw = await complete({
-    system: buildGaSystemPrompt(examName, optionCount),
+    system: withLanguage(buildGaSystemPrompt(examName, optionCount), language),
     messages: [
       {
         role: "user",
@@ -194,9 +197,9 @@ export async function generateCaDayGaQuestions(input: {
     throw new Error("GA generation requires source text — ungrounded GA is not allowed.");
   }
 
-  const { examName, optionCount } = await examGenContext();
+  const { examName, optionCount, language } = await examGenContext();
   const raw = await complete({
-    system: buildCaDayGaQuestionSystemPrompt(examName, optionCount),
+    system: withLanguage(buildCaDayGaQuestionSystemPrompt(examName, optionCount), language),
     messages: [
       {
         role: "user",

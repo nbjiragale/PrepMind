@@ -11,6 +11,7 @@ import {
 } from "@/lib/llm/prompts/generate";
 import { verifyGroundedCards } from "@/lib/llm/verify";
 import { loadExamContext } from "@/lib/llm/examContext";
+import { withLanguage } from "@/lib/llm/language";
 import { genTokens } from "@/lib/config";
 import { numEnv } from "@/lib/env";
 import {
@@ -73,9 +74,9 @@ export async function generateCaCards(input: {
     throw new Error("No GA concepts available — add at least one GA concept first.");
   }
 
-  const { examName } = await loadExamContext();
+  const { examName, language } = await loadExamContext();
   const raw = await complete({
-    system: buildCaCardSystemPrompt(examName),
+    system: withLanguage(buildCaCardSystemPrompt(examName), language),
     messages: [
       {
         role: "user",
@@ -154,9 +155,9 @@ export async function generateCaDayCards(input: {
   const sources = items.filter((it) => it.raw_text?.trim());
   if (sources.length === 0) throw new Error("No current-affairs source text for this day.");
 
-  const { examName } = await loadExamContext();
+  const { examName, language } = await loadExamContext();
   const raw = await complete({
-    system: buildCaDayCardSystemPrompt(examName),
+    system: withLanguage(buildCaDayCardSystemPrompt(examName), language),
     messages: [
       {
         role: "user",
@@ -220,9 +221,9 @@ export async function generateCaDayCards(input: {
 export async function summarizeCaItem(caId: number): Promise<string | null> {
   const ca = await getCaItem(caId);
   if (!ca?.raw_text?.trim()) return null;
-  const { examName } = await loadExamContext();
+  const { examName, language } = await loadExamContext();
   const summary = await complete({
-    system: buildCaSummarySystemPrompt(examName),
+    system: withLanguage(buildCaSummarySystemPrompt(examName), language),
     messages: [{ role: "user", content: buildCaSummaryUserPrompt(ca.raw_text) }],
     task: "bulk",
     maxTokens: 256,

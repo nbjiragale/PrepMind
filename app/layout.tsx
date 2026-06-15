@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, Noto_Sans_Kannada } from "next/font/google";
 import "./globals.css";
 import { Sidebar, MobileTabBar } from "@/components/Sidebar";
 import { SectionTabs } from "@/components/SectionTabs";
+import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { getExamConfig } from "@/lib/db/queries/examConfig";
+import { getLocale } from "@/lib/i18n/server";
 
 const BRAND = "PrepMind";
 
@@ -13,6 +15,15 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-jakarta",
+});
+
+// Kannada glyphs — Jakarta has none, so Kannada text falls through to this in
+// the font stack (per-glyph fallback) for the 'kn' locale.
+const notoKannada = Noto_Sans_Kannada({
+  subsets: ["kannada"],
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-kannada",
 });
 
 // Branding reads run during the build-time prerender of /_not-found too, where no
@@ -44,18 +55,20 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const examName = await activeExamName();
+  const [examName, locale] = await Promise.all([activeExamName(), getLocale()]);
   return (
-    <html lang="en" className={jakarta.variable}>
+    <html lang={locale} className={`${jakarta.variable} ${notoKannada.variable}`}>
       <body className="bg-canvas text-primary">
-        <div className="flex h-dvh">
-          <Sidebar examName={examName} />
-          <main className="flex flex-1 flex-col overflow-hidden">
-            <SectionTabs />
-            <div className="flex-1 overflow-y-auto pb-20 md:pb-0">{children}</div>
-          </main>
-        </div>
-        <MobileTabBar />
+        <LocaleProvider locale={locale}>
+          <div className="flex h-dvh">
+            <Sidebar examName={examName} />
+            <main className="flex flex-1 flex-col overflow-hidden">
+              <SectionTabs />
+              <div className="flex-1 overflow-y-auto pb-20 md:pb-0">{children}</div>
+            </main>
+          </div>
+          <MobileTabBar />
+        </LocaleProvider>
       </body>
     </html>
   );

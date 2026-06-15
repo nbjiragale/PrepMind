@@ -4,6 +4,7 @@ import { complete, isLlmConfigured } from "@/lib/llm/router";
 import { parseJson } from "@/lib/llm/json";
 import { buildDiagnoseSystemPrompt, buildDiagnoseUserPrompt } from "@/lib/llm/prompts/diagnose";
 import { loadExamContext } from "@/lib/llm/examContext";
+import { withLanguage } from "@/lib/llm/language";
 import {
   getAttemptForDiagnosis,
   getUndiagnosedWrongAttempts,
@@ -50,9 +51,9 @@ export async function diagnoseAttempt(attemptId: number): Promise<DiagnosisResul
 
   if (!isLlmConfigured()) return null;
 
-  const { examName } = await loadExamContext();
+  const { examName, language } = await loadExamContext();
   const raw = await complete({
-    system: buildDiagnoseSystemPrompt(examName),
+    system: withLanguage(buildDiagnoseSystemPrompt(examName), language),
     messages: [{ role: "user", content: buildDiagnoseUserPrompt(a) }],
     task: "classify",
     maxTokens: 800,

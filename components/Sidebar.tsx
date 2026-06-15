@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { NAV_SINGLES, NAV_GROUPS, isActiveHref } from "@/lib/nav";
+import { useT } from "@/components/i18n/LocaleProvider";
 
 const SINGLE_ICONS: Record<string, LucideIcon> = {
   "/review": GraduationCap,
@@ -41,12 +42,14 @@ function buildNavItems(pathname: string) {
   const singles = NAV_SINGLES.map((s) => ({
     href: s.href,
     label: s.label,
+    groupKey: null as string | null,
     Icon: SINGLE_ICONS[s.href],
     active: isActiveHref(pathname, s.href),
   }));
   const groups = NAV_GROUPS.map((g) => ({
     href: g.tabs[0].href,
     label: g.label,
+    groupKey: g.key,
     Icon: GROUP_ICONS[g.key],
     active: g.tabs.some((t) => isActiveHref(pathname, t.href)),
   }));
@@ -55,6 +58,7 @@ function buildNavItems(pathname: string) {
 
 export function Sidebar({ examName }: { examName?: string }) {
   const pathname = usePathname();
+  const { t, tNav, tGroup } = useT();
   const items = buildNavItems(pathname);
   return (
     <nav className="bg-surface border-r border-border h-full w-60 shrink-0 p-4 hidden md:flex md:flex-col gap-1">
@@ -69,7 +73,7 @@ export function Sidebar({ examName }: { examName?: string }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        {items.map(({ href, label, Icon, active }) => (
+        {items.map(({ href, label, groupKey, Icon, active }) => (
           <Link
             key={label}
             href={href}
@@ -81,7 +85,7 @@ export function Sidebar({ examName }: { examName?: string }) {
             }`}
           >
             {Icon && <Icon size={18} strokeWidth={active ? 2.2 : 1.75} />}
-            {label}
+            {groupKey ? tGroup(groupKey, label) : tNav(href, label)}
           </Link>
         ))}
       </div>
@@ -93,8 +97,8 @@ export function Sidebar({ examName }: { examName?: string }) {
         className="mt-auto block overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-light p-4 text-on-accent shadow-accent transition-transform duration-150 hover:-translate-y-0.5"
       >
         <Sparkles size={20} strokeWidth={2} className="mb-2" />
-        <p className="text-small font-semibold leading-snug">Track your readiness</p>
-        <p className="text-caption font-medium text-on-accent/80">See where you stand →</p>
+        <p className="text-small font-semibold leading-snug">{t("shell.footerTitle")}</p>
+        <p className="text-caption font-medium text-on-accent/80">{t("shell.footerSub")}</p>
       </Link>
     </nav>
   );
@@ -111,13 +115,25 @@ const mobileItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/tutor", label: "Tutor", Icon: MessageCircle },
 ];
 
+// Short Kannada labels for the narrow mobile tabs (the full nav labels are too
+// long for a tab cell). English keeps its existing short labels.
+const MOBILE_KN: Record<string, string> = {
+  "/review": "ಪುನರಾವರ್ತನೆ",
+  "/practice": "ಅಭ್ಯಾಸ",
+  "/mock": "ಅಣಕು",
+  "/planner": "ಯೋಜಕ",
+  "/tutor": "ಬೋಧಕ",
+};
+
 // Mobile bottom tab bar — the sidebar's small-screen form (UIdesignspec §5).
 export function MobileTabBar() {
   const pathname = usePathname();
+  const { locale } = useT();
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-10 flex border-t border-border bg-surface shadow-lg">
       {mobileItems.map(({ href, label, Icon }) => {
         const active = isActiveHref(pathname, href);
+        const text = locale === "kn" ? MOBILE_KN[href] ?? label : label;
         return (
           <Link
             key={href}
@@ -134,7 +150,7 @@ export function MobileTabBar() {
             >
               <Icon size={20} strokeWidth={active ? 2.2 : 1.75} />
             </span>
-            {label}
+            {text}
           </Link>
         );
       })}

@@ -562,10 +562,25 @@ Act as a senior software engineer and strict code reviewer. Write, refactor, and
 ## 15. Out of scope (do not build)
 
 - Multi-user / second-instance support
-- Non-English (Kannada) localisation *(schema is ready for it via `exam_config.locale`, but don't build it)*
 - Native mobile app, leaderboards, discussion forums, video hosting
 - Dark mode
 - Authentication / user accounts
+
+### Localization (in scope — being built)
+Kannada localization is supported, driven by `exam_config.locale` (chosen at
+onboarding; `'en'` is the default and keeps the app byte-for-byte as before).
+- **UI strings:** message catalog in `lib/i18n/messages.ts` (`en` is the source of
+  truth, `kn` mirrors its keys). Server components resolve the locale via
+  `lib/i18n/server.ts` (`getLocale()`); client components read it from
+  `components/i18n/LocaleProvider.tsx` (`useT()`). Never hardcode user-facing
+  copy — add a key. Convert screens incrementally; English fallbacks keep
+  unconverted screens working.
+- **AI content:** `loadExamContext()` exposes the `language`; every generative
+  service wraps its system prompt with `withLanguage(...)` (`lib/llm/language.ts`),
+  which is a no-op for English. Math re-solve stays language-independent; grounded
+  fact-checks compare meaning regardless of script.
+- **Fonts:** Noto Sans Kannada is in the font stack after Plus Jakarta Sans, so
+  Kannada glyphs fall through per-glyph in either locale.
 
 ---
 

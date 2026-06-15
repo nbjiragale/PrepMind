@@ -10,6 +10,8 @@ import { countDue } from "@/lib/db/queries/cards";
 import { getRecurringMisconceptions } from "@/lib/db/queries/misconceptions";
 import { getExamConfig } from "@/lib/db/queries/examConfig";
 import { getLatestCalibrationModel } from "@/lib/db/queries/calibration";
+import { withLanguage } from "@/lib/llm/language";
+import { coerceLocale, languageName } from "@/lib/i18n/config";
 import { insertLearnerProfile } from "@/lib/db/queries/learnerProfile";
 import type { LearnerProfile } from "@/lib/db/types";
 
@@ -50,7 +52,10 @@ export async function regenerateProfile(): Promise<LearnerProfile | null> {
   };
 
   const summary = await complete({
-    system: buildProfileSystemPrompt(config?.exam_name ?? "the exam"),
+    system: withLanguage(
+      buildProfileSystemPrompt(config?.exam_name ?? "the exam"),
+      languageName(coerceLocale(config?.locale))
+    ),
     messages: [{ role: "user", content: buildProfileUserPrompt(inputs) }],
     task: "tutor",
     maxTokens: 800,
