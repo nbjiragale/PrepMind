@@ -3,11 +3,12 @@ import { listConcepts } from "@/lib/db/queries/concepts";
 import { Card } from "@/components/ui/Card";
 import { IngestForm } from "@/components/ingest/IngestForm";
 import { BulkIngestForm } from "@/components/ingest/BulkIngestForm";
+import { requireExamConfig } from "@/lib/exam/guard";
 
 export const dynamic = "force-dynamic";
 
 export default async function IngestPage() {
-  const concepts = await listConcepts();
+  const [concepts, config] = await Promise.all([listConcepts(), requireExamConfig()]);
 
   return (
     <div className="mx-auto max-w-column px-6 py-8 md:px-8">
@@ -25,7 +26,7 @@ export default async function IngestPage() {
       ) : (
         <div className="grid gap-6">
           <BulkIngestForm />
-          <IngestForm concepts={concepts} />
+          <IngestForm concepts={concepts} optionsPerQuestion={config.options_per_question} />
         </div>
       )}
     </div>

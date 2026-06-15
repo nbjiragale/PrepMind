@@ -4,31 +4,34 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createQuestion, findDuplicateQuestion } from "@/lib/db/queries/questions";
 import { importPyqBatch, type PyqImportResult } from "@/lib/services/pyqImport";
+import { requireExamConfig } from "@/lib/exam/guard";
 
-const schema = z.object({
-  concept_id: z.coerce.number().int().positive(),
-  stem: z.string().min(1),
-  options: z.array(z.string().min(1)).length(4),
-  correct_option: z.coerce.number().int().min(0).max(3),
-  explanation: z.string().trim().optional().nullable(),
-  exam_year: z.coerce.number().int().min(1990).max(2100).optional().nullable(),
-  exam_stage: z.enum(["cbt1", "cbt2"]).optional().nullable(),
-});
+// Option count is exam-driven (exam_config.options_per_question), not hardcoded
+// to RRB NTPC's 4. The schema is built per request against the active config.
+function buildSchema(optionsPerQuestion: number) {
+  return z.object({
+    concept_id: z.coerce.number().int().positive(),
+    stem: z.string().min(1),
+    options: z.array(z.string().min(1)).length(optionsPerQuestion),
+    correct_option: z.coerce.number().int().min(0).max(optionsPerQuestion - 1),
+    explanation: z.string().trim().optional().nullable(),
+    exam_year: z.coerce.number().int().min(1990).max(2100).optional().nullable(),
+    exam_stage: z.enum(["cbt1", "cbt2"]).optional().nullable(),
+  });
+}
 
 export type IngestState = { ok: boolean; message: string };
 
 // A5 — ingest a PYQ: tag to a concept, record provenance, flag duplicates.
 // PYQs are real exam questions, so they are stored verified=true.
 export async function ingestQuestion(_prev: IngestState, formData: FormData): Promise<IngestState> {
-  const parsed = schema.safeParse({
+  const { options_per_question } = await requireExamConfig();
+  const options = Array.from({ length: options_per_question }, (_, i) => formData.get(`option_${i}`));
+
+  const parsed = buildSchema(options_per_question).safeParse({
     concept_id: formData.get("concept_id"),
     stem: formData.get("stem"),
-    options: [
-      formData.get("option_0"),
-      formData.get("option_1"),
-      formData.get("option_2"),
-      formData.get("option_3"),
-    ],
+    options,
     correct_option: formData.get("correct_option"),
     explanation: formData.get("explanation") || null,
     exam_year: formData.get("exam_year") || null,

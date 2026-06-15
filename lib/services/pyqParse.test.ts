@@ -72,3 +72,15 @@ test("coerces stringified numbers for correct_option / exam_year", () => {
   assert.equal(rows[0].correct_option, 2);
   assert.equal(rows[0].exam_year, 2019);
 });
+
+test("honors an exam-driven option count (not hardcoded to 4)", () => {
+  const fiveOptions = { ...valid, options: ["30", "36", "40", "45", "50"], correct_option: 4 };
+  // Accepted when the exam configures 5 options.
+  const ok = parsePyqBatch(JSON.stringify([fiveOptions]), 5);
+  assert.equal(ok.rows.length, 1);
+  assert.equal(ok.errors.length, 0);
+  // The same row is rejected under the default 4-option contract.
+  const rejected = parsePyqBatch(JSON.stringify([fiveOptions]), 4);
+  assert.equal(rejected.rows.length, 0);
+  assert.equal(rejected.errors.length, 1);
+});

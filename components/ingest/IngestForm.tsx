@@ -9,8 +9,15 @@ import type { Concept } from "@/lib/db/types";
 
 const initial: IngestState = { ok: false, message: "" };
 
-export function IngestForm({ concepts }: { concepts: Concept[] }) {
+export function IngestForm({
+  concepts,
+  optionsPerQuestion,
+}: {
+  concepts: Concept[];
+  optionsPerQuestion: number;
+}) {
   const [state, formAction, pending] = useActionState(ingestQuestion, initial);
+  const optionIndexes = Array.from({ length: optionsPerQuestion }, (_, i) => i);
 
   return (
     <Card className="p-6">
@@ -33,7 +40,7 @@ export function IngestForm({ concepts }: { concepts: Concept[] }) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {[0, 1, 2, 3].map((i) => (
+          {optionIndexes.map((i) => (
             <div key={i}>
               <Label htmlFor={`option_${i}`}>Option {i + 1}</Label>
               <Input id={`option_${i}`} name={`option_${i}`} required />
@@ -45,10 +52,11 @@ export function IngestForm({ concepts }: { concepts: Concept[] }) {
           <div>
             <Label htmlFor="correct_option">Correct option</Label>
             <Select id="correct_option" name="correct_option" defaultValue="0">
-              <option value="0">Option 1</option>
-              <option value="1">Option 2</option>
-              <option value="2">Option 3</option>
-              <option value="3">Option 4</option>
+              {optionIndexes.map((i) => (
+                <option key={i} value={i}>
+                  Option {i + 1}
+                </option>
+              ))}
             </Select>
           </div>
           <div>
